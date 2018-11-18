@@ -7,5 +7,8 @@
 2. `cd playlistr-ml-py-v1`
 3. `python3 -m venv .env`
 4. `source .env/bin/activate`
-5. `pip install requirements.txt`
+5. `pip install -r requirements.txt`
 
+## INSTALLING NEW MODULES
+1. `pip install <module_name>`
+2. `pip freeze > requirements.txt`
