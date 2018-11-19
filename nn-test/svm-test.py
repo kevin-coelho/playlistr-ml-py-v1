@@ -26,9 +26,9 @@ genre_data_arr = genre_only_data['data_arr']
 
 # SPLIT DATA
 x_train, x_test, y_train, y_test = train_test_split(data_arr, labels, test_size=0.30)
-#sc_X = StandardScaler()
-#x_train = sc_X.fit_transform(x_train)
-#x_test = sc_X.transform(x_test)
+# sc_X = StandardScaler()
+# x_train = sc_X.fit_transform(x_train)
+# x_test = sc_X.transform(x_test)
 
 genre_only_x_train, genre_only_x_test, genre_only_y_train, genre_only_y_test = train_test_split(genre_data_arr, labels, test_size=0.30)
 
@@ -45,8 +45,8 @@ sigmoid_results = sigmoid_classifier.predict(x_test)
 sigmoid_accuracy = 1 - (np.sum([1 for idx, result in enumerate(sigmoid_results) if result == y_test[idx]]) / y_test.shape[0])
 print('Sigmoid Kernel Accuracy: {}'.format(sigmoid_accuracy))
 
-#x_train_poly = PolynomialFeatures(degree=2).fit_transform(x_train)
-#x_test_poly = PolynomialFeatures(degree=2).fit_transform(x_test)
+# x_train_poly = PolynomialFeatures(degree=2).fit_transform(x_train)
+# x_test_poly = PolynomialFeatures(degree=2).fit_transform(x_test)
 
 percept = Perceptron(fit_intercept=False, max_iter=1000, tol=1e-3, shuffle=False).fit(x_train, y_train)
 percept_results = percept.predict(x_test)
