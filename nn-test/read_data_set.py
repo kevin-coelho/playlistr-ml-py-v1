@@ -92,7 +92,6 @@ def get_toy_set_genre_only():
         }
     """
     GENRE_IDX = 11
-    TRACK_ID_IDX = 0
 
     # GET AND FORMAT DATA
     tracks = np.array(get_tracks())
@@ -111,15 +110,6 @@ def get_toy_set_genre_only():
         for genre_name in genre_list:
             if genre_name:
                 one_hot_arr[genre_dict[genre_name]] += 1
-    tracks = np.delete(
-        tracks, [TRACK_ID_IDX, GENRE_IDX, tracks.shape[1] - 1], axis=1)
-    data_arr = np.append(tracks, one_hot_genres, axis=1)
-
-    # remove nulls
-    for sample in data_arr:
-        for idx, elem in enumerate(sample):
-            if elem is None:
-                sample[idx] = 0
 
     return {
         'data_arr': one_hot_genres,
