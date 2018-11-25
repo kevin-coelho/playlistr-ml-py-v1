@@ -1,15 +1,18 @@
 # STANDARD IMPORTS
+import operator
 
 # NON-STANDARD IMPORTS
 
-# SKLEARN
-from sklearn.model_selection import KFold
+# SKLEARN 
+from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Perceptron
-
+from sklearn.pipeline import make_pipeline
+import optunity
+import optunity.metrics
 
 # NUMPY
 import numpy as np
@@ -18,65 +21,107 @@ import numpy as np
 from read_data_set import get_toy_set, get_toy_set_genre_only
 
 # GET DATA
-data = get_toy_set()
-data_arr = data['data_arr']
-labels = data['labels']
+full_data = get_toy_set()
+full_data_arr = full_data['data_arr']
+labels = full_data['labels']
 
 genre_only_data = get_toy_set_genre_only()
 genre_data_arr = genre_only_data['data_arr']
 
-# SPLIT DATA
-# kf = KFold(n_splits=4, shuffle=True)
-# kf.get_n_splits(data_arr)
 
-x_train, x_test, y_train, y_test = train_test_split(data_arr, labels, test_size=0.30)
-sc_X = StandardScaler()
-x_train = sc_X.fit_transform(x_train)
-x_test = sc_X.transform(x_test)
+def run_rbf_kernel(scale_features=False, genre_only=False):
+    data = genre_data_arr if genre_only else full_data_arr
+    svm = SVC(kernel='rbf', gamma='scale')
+    classifier = make_pipeline(StandardScaler(), svm) if scale_features else svm
+    scores = cross_val_score(classifier, data, labels, cv=5)
+    result = '[{}] [{}] RBF Kernel Scores: {}'.format(
+        'Genre Only' if genre_only else 'Full',
+        'Scaled' if scale_features else 'Unscaled',
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+    return result
 
-# kf_g = KFold(n_splits=4, shuffle=True)
-# kf_g.get_n_splits(genre_data_arr)
-genre_only_x_train, genre_only_x_test, genre_only_y_train, genre_only_y_test = train_test_split(genre_data_arr, labels, test_size=0.30)
 
-# for train_index, test_index in kf.split(data_arr):
+# PARAMETERS TO TUNE
+# C, gamma, coef0
+"""
+decision_function_shape : ‘ovo’, ‘ovr’, default=’ovr’
+Whether to return a one-vs-rest (‘ovr’) decision function of shape (n_samples, n_classes) as all other classifiers, or the original one-vs-one (‘ovo’) decision function of libsvm which has shape (n_samples, n_classes * (n_classes - 1) / 2). However, one-vs-one (‘ovo’) is always used as multi-class strategy.
 
-# TRAIN CLASSIFIERS
-rbf_classifier = SVC(kernel='rbf', gamma='scale')
-rbf_classifier.fit(x_train, y_train)
-rbf_results = rbf_classifier.predict(x_test)
-rbf_accuracy = (np.sum([1 for idx, result in enumerate(rbf_results) if result == y_test[idx]]) / y_test.shape[0])
-print('RBF Kernel Accuracy: {}'.format(rbf_accuracy))
+"""
+def run_sigmoid_kernel(scale_features=False, genre_only=False):
+    data = genre_data_arr if genre_only else full_data_arr
+    svm = SVC(kernel='sigmoid', gamma='scale')
+    classifier = make_pipeline(StandardScaler(), svm) if scale_features else svm
+    scores = cross_val_score(classifier, data, labels, cv=5)
+    result = '[{}] [{}] Sigmoid Kernel Scores: {}'.format(
+        'Genre Only' if genre_only else 'Full',
+        'Scaled' if scale_features else 'Unscaled',
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+    return result
 
-sigmoid_classifier = SVC(kernel='sigmoid', gamma='scale')
-sigmoid_classifier.fit(x_train, y_train)
-sigmoid_results = sigmoid_classifier.predict(x_test)
-sigmoid_accuracy = (np.sum([1 for idx, result in enumerate(sigmoid_results) if result == y_test[idx]]) / y_test.shape[0])
-print('Sigmoid Kernel Accuracy: {}'.format(sigmoid_accuracy))
 
-# x_train_poly = PolynomialFeatures(degree=2).fit_transform(x_train)
-# x_test_poly = PolynomialFeatures(degree=2).fit_transform(x_test)
+def run_poly_kernel(scale_features=False, genre_only=False):
+    data = genre_data_arr if genre_only else full_data_arr
+    svm = SVC(kernel='poly', gamma='scale', degree=4)
+    classifier = make_pipeline(StandardScaler(), svm) if scale_features else svm
+    scores = cross_val_score(classifier, data, labels, cv=5)
+    result = '[{}] [{}] Poly Kernel Scores: {}'.format(
+        'Genre Only' if genre_only else 'Full',
+        'Scaled' if scale_features else 'Unscaled',
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+    return result
 
-percept = Perceptron(fit_intercept=False, max_iter=1000, tol=1e-3, shuffle=False).fit(x_train, y_train)
-percept_results = percept.predict(x_test)
-percept_accuracy = (np.sum([1 for idx, result in enumerate(percept_results) if result == y_test[idx]]) / y_test.shape[0])
-print('Perceptron Accuracy: {}'.format(percept_accuracy))
 
-poly_classifier = SVC(kernel='poly', degree=4, gamma='scale')
-poly_classifier.fit(x_train, y_train)
-poly_results = poly_classifier.predict(x_test)
-poly_accuracy = (np.sum([1 for idx, result in enumerate(poly_results) if result == y_test[idx]]) / y_test.shape[0])
-print('POLY Kernel Accuracy: {}'.format(poly_accuracy))
+def run_perceptron(scale_features=False, genre_only=False):
+    data = genre_data_arr if genre_only else full_data_arr
+    percept = Perceptron(fit_intercept=False, max_iter=1000, tol=1e-3, shuffle=True)
+    classifier = make_pipeline(StandardScaler(), percept) if scale_features else percept
+    scores = cross_val_score(classifier, data, labels, cv=5)
+    result = '[{}] [{}] Perceptron Scores: {}'.format(
+        'Genre Only' if genre_only else 'Full',
+        'Scaled' if scale_features else 'Unscaled',
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+    return result
 
-# for train_index, test_index in kf.split(genre_data_arr):
+"""
+results = []
+for scale in [True, False]:
+    for genre_only in [True, False]:
+        results.append(run_rbf_kernel(scale, genre_only))
+        results.append(run_sigmoid_kernel(scale, genre_only))
+        results.append(run_poly_kernel(scale, genre_only))
+        results.append(run_perceptron(scale, genre_only))
+print('\n###### INITIAL RESULTS ######\n\t' + '\n\t'.join(results))"""
 
-print('\n##### GENRE ONLY #####\n')
-genre_poly_classifier = SVC(kernel='poly', degree=4, gamma='scale')
-genre_poly_classifier.fit(genre_only_x_train, genre_only_y_train)
-genre_poly_results = genre_poly_classifier.predict(genre_only_x_test)
-genre_poly_accuracy = (np.sum([1 for idx, result in enumerate(genre_poly_results) if result == genre_only_y_test[idx]]) / genre_only_y_test.shape[0])
-print('POLY Kernel Accuracy: {}'.format(genre_poly_accuracy))
 
-genre_percept = Perceptron(fit_intercept=False, max_iter=1000, tol=1e-3, shuffle=False).fit(genre_only_x_train, genre_only_y_train)
-genre_percept_results = genre_percept.predict(genre_only_x_test)
-genre_percept_accuracy = (np.sum([1 for idx, result in enumerate(genre_percept_results) if result == genre_only_y_test[idx]]) / genre_only_y_test.shape[0])
-print('Perceptron Accuracy: {}'.format(genre_percept_accuracy))
+scaler = StandardScaler()
+scaled_full_data = scaler.fit_transform(full_data_arr)
+
+c_vals = {}
+
+# score function: twice iterated 10-fold cross-validated accuracy
+@optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
+def svm_auc(x_train, y_train, x_test, y_test, logC):
+    model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
+    accuracy = model.score(x_test, y_test)
+    print('tuning...', logC, accuracy)
+    decision_values = model.decision_function(x_test)
+    if str(logC) not in c_vals:
+        c_vals[str(logC)] = accuracy
+    else:
+        c_vals[str(logC)] += accuracy / 10
+    return accuracy
+    # return optunity.metrics.roc_auc(y_test, decision_values)
+
+
+# perform tuning
+hps, _, _ = optunity.maximize(svm_auc, num_evals=25, logC=[-5, 2])
+
+# print('best c: {}'.format(max(c_vals.items(), key=operator.itemgetter(1))[0]))
+
+# train model on the full training set with tuned hyperparameters
+optimal_model = SVC(kernel='sigmoid', C=10 ** hps['logC'], gamma='scale')
+# optimal_model = SVC(kernel='sigmoid', C=16.49, gamma='scale')
+scores = cross_val_score(optimal_model, scaled_full_data, labels, cv=5)
+result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+print(result)
