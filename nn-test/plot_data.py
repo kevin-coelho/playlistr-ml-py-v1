@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
@@ -29,7 +28,7 @@ for i in range(len(set(labels))):
     data.append(d)
 
 cm = plt.get_cmap('gist_rainbow')
-colors = [cm(2.*i/float(len(set(labels)))) for i in range(len(set(labels)))]
+colors = [cm(1.5*i/float(len(set(labels)))) for i in range(len(set(labels)))]
 
 # PLOTTING
 fig = plt.figure()
@@ -37,7 +36,7 @@ ax = fig.add_subplot(1, 1, 1, projection='3d')
 
 for data, color in zip(data, colors):
     x, y, z = data
-    ax.scatter(x, y, z, alpha=0.5, c=color, edgecolors='none', s=30)
+    ax.scatter(x, y, z, alpha=0.8, c=color, edgecolors='none', s=30)
 
 plt.title('Toy-Set Data')
 plt.legend(loc=2)
