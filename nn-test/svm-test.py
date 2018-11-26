@@ -3,9 +3,10 @@ import operator
 
 # NON-STANDARD IMPORTS
 
-# SKLEARN 
+# SKLEARN
+import pandas as pd
 from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures
@@ -22,12 +23,11 @@ from read_data_set import get_toy_set, get_toy_set_genre_only
 
 # GET DATA
 full_data = get_toy_set()
-full_data_arr = full_data['data_arr']
-labels = full_data['labels']
+full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+labels = np.asarray(full_data['labels'])
 
 genre_only_data = get_toy_set_genre_only()
-genre_data_arr = genre_only_data['data_arr']
-
+genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
 
 def run_rbf_kernel(scale_features=False, genre_only=False):
     data = genre_data_arr if genre_only else full_data_arr
@@ -37,7 +37,8 @@ def run_rbf_kernel(scale_features=False, genre_only=False):
     result = '[{}] [{}] RBF Kernel Scores: {}'.format(
         'Genre Only' if genre_only else 'Full',
         'Scaled' if scale_features else 'Unscaled',
-        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
+        # (scores.std() * 1.96) corresponds to 95% confidence interval
     return result
 
 
@@ -56,7 +57,7 @@ def run_sigmoid_kernel(scale_features=False, genre_only=False):
     result = '[{}] [{}] Sigmoid Kernel Scores: {}'.format(
         'Genre Only' if genre_only else 'Full',
         'Scaled' if scale_features else 'Unscaled',
-        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
     return result
 
 
@@ -68,7 +69,7 @@ def run_poly_kernel(scale_features=False, genre_only=False):
     result = '[{}] [{}] Poly Kernel Scores: {}'.format(
         'Genre Only' if genre_only else 'Full',
         'Scaled' if scale_features else 'Unscaled',
-        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
     return result
 
 
@@ -80,10 +81,9 @@ def run_perceptron(scale_features=False, genre_only=False):
     result = '[{}] [{}] Perceptron Scores: {}'.format(
         'Genre Only' if genre_only else 'Full',
         'Scaled' if scale_features else 'Unscaled',
-        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
     return result
 
-"""
 results = []
 for scale in [True, False]:
     for genre_only in [True, False]:
@@ -91,7 +91,7 @@ for scale in [True, False]:
         results.append(run_sigmoid_kernel(scale, genre_only))
         results.append(run_poly_kernel(scale, genre_only))
         results.append(run_perceptron(scale, genre_only))
-print('\n###### INITIAL RESULTS ######\n\t' + '\n\t'.join(results))"""
+print('\n###### ONE-TIME RESULTS ######\n\t' + '\n\t'.join(results))
 
 
 scaler = StandardScaler()
@@ -104,7 +104,7 @@ c_vals = {}
 def svm_auc(x_train, y_train, x_test, y_test, logC):
     model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
     accuracy = model.score(x_test, y_test)
-    print('tuning...', logC, accuracy)
+    # print('tuning...', logC, accuracy)
     decision_values = model.decision_function(x_test)
     if str(logC) not in c_vals:
         c_vals[str(logC)] = accuracy
@@ -116,12 +116,12 @@ def svm_auc(x_train, y_train, x_test, y_test, logC):
 
 # perform tuning
 hps, _, _ = optunity.maximize(svm_auc, num_evals=25, logC=[-5, 2])
+print(hps)
 
 # print('best c: {}'.format(max(c_vals.items(), key=operator.itemgetter(1))[0]))
 
 # train model on the full training set with tuned hyperparameters
 optimal_model = SVC(kernel='sigmoid', C=10 ** hps['logC'], gamma='scale')
-# optimal_model = SVC(kernel='sigmoid', C=16.49, gamma='scale')
 scores = cross_val_score(optimal_model, scaled_full_data, labels, cv=5)
-result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
 print(result)
