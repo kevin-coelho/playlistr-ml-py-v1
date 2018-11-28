@@ -4,15 +4,20 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 # MODULE DEPS
-from read_data_set import get_toy_set
+from read_data_set import get_toy_set, get_toy_set_genre_only
 
 # GET DATA
 full_data = get_toy_set()
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
 labels = np.asarray(full_data['labels'])
 
+# GET GENRE DATA
+genre_only_data = get_toy_set_genre_only()
+genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
+
 # NORMALIZE DATA
-norm_data = StandardScaler().fit_transform(full_data_arr)
+# norm_data = StandardScaler().fit_transform(full_data_arr)
+norm_data = StandardScaler().fit_transform(genre_data_arr)
 
 # PCA DIM REDUCTION
 C = np.cov(np.transpose(norm_data))
