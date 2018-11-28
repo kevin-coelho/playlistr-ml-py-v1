@@ -1,241 +1,206 @@
-# -*- coding: utf-8 -*-
-"""
-Neural Networks
-===============
+# NUMPY
+import numpy as np
 
-Neural networks can be constructed using the ``torch.nn`` package.
+# MODULE DEPS
+from read_data_set import get_toy_set, get_toy_set_genre_only
 
-Now that you had a glimpse of ``autograd``, ``nn`` depends on
-``autograd`` to define models and differentiate them.
-An ``nn.Module`` contains layers, and a method ``forward(input)``\ that
-returns the ``output``.
-
-For example, look at this network that classifies digit images:
-
-.. figure:: /_static/img/mnist.png
-   :alt: convnet
-
-   convnet
-
-It is a simple feed-forward network. It takes the input, feeds it
-through several layers one after the other, and then finally gives the
-output.
-
-A typical training procedure for a neural network is as follows:
-
-- Define the neural network that has some learnable parameters (or
-  weights)
-- Iterate over a dataset of inputs
-- Process input through the network
-- Compute the loss (how far is the output from being correct)
-- Propagate gradients back into the network’s parameters
-- Update the weights of the network, typically using a simple update rule:
-  ``weight = weight - learning_rate * gradient``
-
-Define the network
-------------------
-
-Let’s define this network:
-"""
+# NN
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+from skorch import NeuralNet
+from torch.autograd import Variable
+from pytorch_data_set import SpotifyDataset
 
 
+# GET FULL DATA
+full_data = get_toy_set()
+full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+(numSamples, numFeatures) = full_data_arr.shape
+labels_arr = np.asarray(full_data['labels'])
+numClasses = len(set(labels_arr))
+
+# # GET GENRE DATA
+# genre_only_data = get_toy_set_genre_only()
+# genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
+# (numGenreSamples, numGenreFeatures) = genre_data_arr.shape
+
+# CONVERT TO PYTORCH DATASET
+labels_matrix = np.reshape(labels_arr, (len(labels_arr),1))
+X = torch.from_numpy(full_data_arr).float()
+y = torch.from_numpy(labels_matrix).long()
+
+train_data = torch.utils.data.TensorDataset(X, y)
+trainloader = torch.utils.data.DataLoader(train_data, batch_size=4, shuffle=True)
+
+X = Variable(X).type(torch.FloatTensor)
+y = Variable(y).type(torch.LongTensor)
+
+# DEFINE NETWORK
 class Net(nn.Module):
-
-    def __init__(self):
+    def __init__(self, numFeatures, numClasses):
         super(Net, self).__init__()
-        # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(1, 1)
+        # define architecture
+        self.hidden_layer = nn.Linear(numFeatures, numClasses)
+        self.output = nn.Linear(numClasses, 1)
 
     def forward(self, x):
-        x = self.fc1(x)
+        x = F.sigmoid(self.hidden_layer(x))
+        x = F.sigmoid(self.output(x))
         return x
 
 
-net = Net()
-print(net)
-
-########################################################################
-# You just have to define the ``forward`` function, and the ``backward``
-# function (where gradients are computed) is automatically defined for you
-# using ``autograd``.
-# You can use any of the Tensor operations in the ``forward`` function.
-#
-# The learnable parameters of a model are returned by ``net.parameters()``
-
-params = list(net.parameters())
-print(len(params))
-print(params[0].size())  # conv1's .weight
-
-########################################################################
-# Let try a random 32x32 input
-# Note: Expected input size to this net(LeNet) is 32x32. To use this net on
-# MNIST dataset, please resize the images from the dataset to 32x32.
-
-input = torch.randn(1, 1, 32, 32)
-out = net(input)
-print(out)
-
-########################################################################
-# Zero the gradient buffers of all parameters and backprops with random
-# gradients:
-net.zero_grad()
-out.backward(torch.randn(1, 10))
-
-########################################################################
-# .. note::
-#
-#     ``torch.nn`` only supports mini-batches. The entire ``torch.nn``
-#     package only supports inputs that are a mini-batch of samples, and not
-#     a single sample.
-#
-#     For example, ``nn.Conv2d`` will take in a 4D Tensor of
-#     ``nSamples x nChannels x Height x Width``.
-#
-#     If you have a single sample, just use ``input.unsqueeze(0)`` to add
-#     a fake batch dimension.
-#
-# Before proceeding further, let's recap all the classes you’ve seen so far.
-#
-# **Recap:**
-#   -  ``torch.Tensor`` - A *multi-dimensional array* with support for autograd
-#      operations like ``backward()``. Also *holds the gradient* w.r.t. the
-#      tensor.
-#   -  ``nn.Module`` - Neural network module. *Convenient way of
-#      encapsulating parameters*, with helpers for moving them to GPU,
-#      exporting, loading, etc.
-#   -  ``nn.Parameter`` - A kind of Tensor, that is *automatically
-#      registered as a parameter when assigned as an attribute to a*
-#      ``Module``.
-#   -  ``autograd.Function`` - Implements *forward and backward definitions
-#      of an autograd operation*. Every ``Tensor`` operation, creates at
-#      least a single ``Function`` node, that connects to functions that
-#      created a ``Tensor`` and *encodes its history*.
-#
-# **At this point, we covered:**
-#   -  Defining a neural network
-#   -  Processing inputs and calling backward
-#
-# **Still Left:**
-#   -  Computing the loss
-#   -  Updating the weights of the network
-#
-# Loss Function
-# -------------
-# A loss function takes the (output, target) pair of inputs, and computes a
-# value that estimates how far away the output is from the target.
-#
-# There are several different
-# `loss functions <http://pytorch.org/docs/nn.html#loss-functions>`_ under the
-# nn package .
-# A simple loss is: ``nn.MSELoss`` which computes the mean-squared error
-# between the input and the target.
-#
-# For example:
-
-output = net(input)
-target = torch.randn(10)  # a dummy target, for example
-target = target.view(1, -1)  # make it the same shape as output
-criterion = nn.MSELoss()
-
-loss = criterion(output, target)
-print(loss)
-
-########################################################################
-# Now, if you follow ``loss`` in the backward direction, using its
-# ``.grad_fn`` attribute, you will see a graph of computations that looks
-# like this:
-#
-# ::
-#
-#     input -> conv2d -> relu -> maxpool2d -> conv2d -> relu -> maxpool2d
-#           -> view -> linear -> relu -> linear -> relu -> linear
-#           -> MSELoss
-#           -> loss
-#
-# So, when we call ``loss.backward()``, the whole graph is differentiated
-# w.r.t. the loss, and all Tensors in the graph that has ``requires_grad=True``
-# will have their ``.grad`` Tensor accumulated with the gradient.
-#
-# For illustration, let us follow a few steps backward:
-
-print(loss.grad_fn)  # MSELoss
-print(loss.grad_fn.next_functions[0][0])  # Linear
-print(loss.grad_fn.next_functions[0][0].next_functions[0][0])  # ReLU
-
-########################################################################
-# Backprop
-# --------
-# To backpropagate the error all we have to do is to ``loss.backward()``.
-# You need to clear the existing gradients though, else gradients will be
-# accumulated to existing gradients.
-#
-#
-# Now we shall call ``loss.backward()``, and have a look at conv1's bias
-# gradients before and after the backward.
 
 
-net.zero_grad()     # zeroes the gradient buffers of all parameters
-
-print('conv1.bias.grad before backward')
-print(net.conv1.bias.grad)
-
-loss.backward()
-
-print('conv1.bias.grad after backward')
-print(net.conv1.bias.grad)
-
-########################################################################
-# Now, we have seen how to use loss functions.
-#
-# **Read Later:**
-#
-#   The neural network package contains various modules and loss functions
-#   that form the building blocks of deep neural networks. A full list with
-#   documentation is `here <http://pytorch.org/docs/nn>`_.
-#
-# **The only thing left to learn is:**
-#
-#   - Updating the weights of the network
-#
-# Update the weights
-# ------------------
-# The simplest update rule used in practice is the Stochastic Gradient
-# Descent (SGD):
-#
-#      ``weight = weight - learning_rate * gradient``
-#
-# We can implement this using simple python code:
-#
-# .. code:: python
-#
-#     learning_rate = 0.01
-#     for f in net.parameters():
-#         f.data.sub_(f.grad.data * learning_rate)
-#
-# However, as you use neural networks, you want to use various different
-# update rules such as SGD, Nesterov-SGD, Adam, RMSProp, etc.
-# To enable this, we built a small package: ``torch.optim`` that
-# implements all these methods. Using it is very simple:
-
-import torch.optim as optim
-
-# create your optimizer
-optimizer = optim.SGD(net.parameters(), lr=0.01)
-
-# in your training loop:
-optimizer.zero_grad()   # zero the gradient buffers
-output = net(input)
-loss = criterion(output, target)
-loss.backward()
-optimizer.step()    # Does the update
 
 
-###############################################################
-# .. Note::
+
+
+# INSTANTIATE PROBLEM
+model = NeuralNet(
+        module = Net,
+        module__numFeatures = numFeatures,
+        module__numClasses = numClasses,
+        criterion = nn.NLLLoss,
+        optimizer = optim.SGD,
+        optimizer__lr = 0.001,
+        optimizer__momentum = 0.9)
+
+model.fit_loop(X, y, epochs = 20)
+y_pred = model.predict(X_valid)
+
+
+
+
+
+
+
+
+
+
+
+
+# model = Net(numFeatures, numClasses)
 #
-#       Observe how gradient buffers had to be manually set to zero using
-#       ``optimizer.zero_grad()``. This is because gradients are accumulated
-#       as explained in `Backprop`_ section.
+# # DEFINE LOSS AND MINIMIZATION METHOD
+# # criterion = nn.MSELoss()
+# criterion = nn.NLLLoss()
+# optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+#
+# for epoch in range(100):  # loop over the dataset multiple times
+#
+#     running_loss = 0.0
+#     for i, sample in enumerate(trainloader, 0):
+#         # get the inputs & targets
+#         inputs, labels = sample
+#         # print(inputs, labels)
+#
+#         # zero the parameter gradients
+#         optimizer.zero_grad()
+#
+#         # forward + backward + optimize
+#         outputs = model(inputs)
+#         loss = criterion(outputs, labels)
+#         loss.backward()
+#         optimizer.step()
+#
+#         # print statistics
+#         running_loss += loss.item()
+#         if i % 50 == 49:    # print every 50 mini-batches
+#             print('[%d, %5d] Batch loss: %.3f' %
+#                   (epoch + 1, i + 1, running_loss / 50))
+#             running_loss = 0.0
+#     # print statistics
+#     # print('#### [%d] EPOCH LOSS: %.3f' % (epoch + 1, loss.item()))
+# print('Finished Training')
+
+
+
+
+
+
+
+
+
+
+
+
+# # Define train and test data
+# batch_size = 32
+# train_loader = None  # Change this to training data iterator
+# test_loader = None  # Change this to testing data iterator
+#
+#
+# # Checking GPU availability
+# use_gpu = torch.cuda.is_available()
+#
+# # Defining Model
+# class Net(nn.Module):
+#     def __init__(self):
+#         super(Net, self).__init__()
+#         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+#         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+#         self.conv2_drop = nn.Dropout2d()
+#         self.fc1 = nn.Linear(320, 50)
+#         self.fc2 = nn.Linear(50, 10)
+#
+#     def forward(self, x):
+#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
+#         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+#         x = x.view(-1, 320)
+#         x = F.relu(self.fc1(x))
+#         x = F.dropout(x, training=self.training)
+#         x = self.fc2(x)
+#         return F.log_softmax(x, dim=1)
+#
+# model = Net()
+# if use_gpu:
+#     model = model.cuda()
+#
+# optimizer = torch.optim.SGD(model.parameters(), 0.01, 0.9)
+#
+#
+# def train(epoch):
+#     model.train()
+#     for batch_idx, (data, target) in enumerate(train_loader):
+#         if use_gpu:
+#             data, target = data.cuda(), target.cuda()
+#         data, target = Variable(data), Variable(target)
+#
+#         optimizer.zero_grad()
+#         output = model(data)
+#         loss = F.nll_loss(output, target)
+#
+#         loss.backward()
+#         optimizer.step()
+#
+#         if batch_idx % 50 == 0:
+#             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+#                 epoch, batch_idx * len(data), len(train_loader) * batch_size,
+#                 100. * batch_idx / len(train_loader), loss.data[0]))
+#
+# def test():
+#     model.eval()
+#     test_loss = 0
+#     correct = 0
+#     for data, target in test_loader:
+#         if use_gpu:
+#             data, target = data.cuda(), target.cuda()
+#         data, target = Variable(data), Variable(target)
+#
+#         output = model(data)
+#
+#         test_loss += F.nll_loss(output, target, size_average=False).data[0] # sum up batch loss
+#         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+#         correct += pred.eq(target.data.view_as(pred)).long().cpu().sum()
+#
+#     test_loss /= len(test_loader) * batch_size
+#     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+#         test_loss, correct, len(test_loader) * batch_size,
+#         100. * correct / (len(test_loader) * batch_size)))
+#
+#
+# for epoch in range(1, 2):
+#     train(epoch)
+#     test()
