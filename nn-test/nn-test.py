@@ -65,9 +65,13 @@ model = NeuralNet(
         criterion = nn.NLLLoss,
         optimizer = optim.SGD,
         optimizer__lr = 0.001,
-        optimizer__momentum = 0.9)
+        optimizer__momentum = 0.9,
+        max_epochs = 20)
 
-model.fit_loop(X, y, epochs = 20)
+# trainloader.CVSplit(5)
+
+model.fit(X, y)
+net.save_params(f_params='train_params.pkl')
 y_pred = model.predict(X_valid)
 
 
