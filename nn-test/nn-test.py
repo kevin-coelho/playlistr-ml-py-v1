@@ -47,7 +47,7 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(1, 1)
+        self.fc1 = nn.Linear(32, 1)
 
     def forward(self, x):
         x = self.fc1(x)
@@ -76,7 +76,7 @@ print(params[0].size())  # conv1's .weight
 
 input = torch.randn(1, 1, 32, 32)
 out = net(input)
-print(out)
+print('out', out)
 
 ########################################################################
 # Zero the gradient buffers of all parameters and backprops with random

@@ -1,5 +1,9 @@
 import psycopg2
 import numpy as np
+import os
+
+CWD = os.path.dirname(os.path.realpath(__file__))
+QUERY_FOLDER = os.path.join(CWD, 'queries')
 
 try:
     conn = psycopg2.connect(
@@ -14,7 +18,8 @@ def get_tracks():
     try:
         # open the query file in "read mode" ('r'), read it (read()), then
         # execute that query
-        cur.execute(open('./queries/get_tracks.sql', 'r').read())
+        QUERY_FILE = os.path.join(QUERY_FOLDER, 'get_tracks.sql')
+        cur.execute(open(QUERY_FILE, 'r').read())
         # get all the rows from the result of executing the query
         rows = cur.fetchall()
         # for every row, split off the first and last columns (trackId and playlistId), then convert to numpy array
@@ -35,6 +40,16 @@ def get_genres():
         # print(rows)
         return rows
 
+    except Exception as e:
+        print(e)
+
+
+def get_related_artists():
+    try:
+        QUERY_FILE = os.path.join(QUERY_FOLDER, 'related_artists_names.sql')
+        cur.execute(open(QUERY_FILE, 'r').read())
+        rows = cur.fetchall()
+        return rows
     except Exception as e:
         print(e)
 

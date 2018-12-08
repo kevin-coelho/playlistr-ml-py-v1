@@ -1,3 +1,11 @@
+# Output folders
+*/output
+
+# Node2Vec Ignores
+/node2vec/emb
+/node2vec/graph
+/node2vec/node2vec_spark/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -82,8 +90,8 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
-.env
-.venv
+*.env
+*.venv
 env/
 venv/
 ENV/

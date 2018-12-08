@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import Perceptron
 from sklearn.pipeline import make_pipeline
 import optunity
@@ -83,6 +84,25 @@ def run_perceptron(scale_features=False, genre_only=False):
         'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
     return result
 
+
+def run_logistic(scale_features=False, genre_only=False):
+    data = genre_data_arr if genre_only else full_data_arr
+    logist = LogisticRegression()
+    classifier = make_pipeline(StandardScaler(), logist) if scale_features else logist
+    scores = cross_val_score(classifier, data, labels, cv=5)
+    result = '[{}] [{}] Logistic Regression Scores: {}'.format(
+        'Genre Only' if genre_only else 'Full',
+        'Scaled' if scale_features else 'Unscaled',
+        'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
+    return result
+
+
+results = []
+for scale in [True, False]:
+    for genre_only in [True, False]:
+            results.append(run_logistic(scale, genre_only))            
+print('\n###### INITIAL RESULTS ######\n\t' + '\n\t'.join(results))
+
 """
 results = []
 for scale in [True, False]:
@@ -93,7 +113,7 @@ for scale in [True, False]:
         results.append(run_perceptron(scale, genre_only))
 print('\n###### INITIAL RESULTS ######\n\t' + '\n\t'.join(results))"""
 
-
+"""
 scaler = StandardScaler()
 scaled_full_data = scaler.fit_transform(full_data_arr)
 
@@ -125,3 +145,4 @@ optimal_model = SVC(kernel='sigmoid', C=10 ** hps['logC'], gamma='scale')
 scores = cross_val_score(optimal_model, scaled_full_data, labels, cv=5)
 result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
 print(result)
+"""
