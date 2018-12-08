@@ -1,7 +1,4 @@
 # DEPENDENCIES
-import networkx as nx
-import matplotlib.pyplot as plt
-import numpy as np
 import sys
 import os
 import networkx as nx
@@ -47,14 +44,3 @@ walks = G.simulate_walks(NUM_WALKS, WALK_LENGTH)
 model = Word2Vec(walks, size=VECTOR_DIMENSION, window=WINDOW_SIZE, min_count=0, sg=1, workers=PARALLEL_WORKER_COUNT, iter=SGD_EPOCHS)
 word_vectors = model.wv
 word_vectors.save_word2vec_format(RESULT_FILE)
-
-"""
-G = nx.Graph()
-edges = get_related_artists()
-print(edges[0])
-G.add_edges_from(edges[0:100])
-G = nx.convert_node_labels_to_integers(G)
-plt.subplot(121)
-nx.draw(G, with_labels=True, **{'node_size': 5})
-plt.show()
-"""
