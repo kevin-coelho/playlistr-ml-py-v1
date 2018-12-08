@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import random
+import multiprocessing
 
 
 class Graph():
@@ -37,6 +38,23 @@ class Graph():
                 break
 
         return walk
+
+    def simulate_walks_multi(self, num_walks, walk_length, concurrency=multiprocessing.cpu_count()):
+        G = self.G
+        walks = []
+        nodes = list(G.nodes())
+        count = 0
+
+        def mp_worker(nodes):
+            mp_walks = []
+            random.shuffle(nodes)
+            for node in nodes:
+                mp_walks.append(self.node2vec_walk(walk_length=walk_length, start_node=node))
+            walks = walks + mp_walks
+            count = count + 1
+            print('Completed walk. Count: {}'.format(count))
+
+    #todo finish this
 
     def simulate_walks(self, num_walks, walk_length):
         '''

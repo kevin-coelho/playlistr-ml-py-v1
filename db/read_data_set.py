@@ -44,6 +44,15 @@ def get_genres():
         print(e)
 
 
+def get_related_genres():
+    try:
+        cur.execute('SELECT "artistId", array_agg(genre) FROM artist_genre GROUP BY "artistId";')
+        rows = cur.fetchall()
+        return rows
+    except Exception as e:
+        print(e)
+
+
 def get_related_artists():
     try:
         QUERY_FILE = os.path.join(QUERY_FOLDER, 'related_artists_names.sql')
