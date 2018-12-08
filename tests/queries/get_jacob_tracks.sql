@@ -18,6 +18,7 @@ INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
 INNER JOIN "AudioFeatures" af ON af."trackId" = tr.id
 INNER JOIN artist_track at ON tr.id = at."trackId"
 INNER JOIN artist_genre ag ON at."artistId" = ag."artistId"
+WHERE pl."ownerId" = '1220354976'
 GROUP BY
 	tr.id,
 	af.danceability,

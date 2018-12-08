@@ -2,24 +2,46 @@
 import numpy as np
 
 # MODULE DEPS
-from read_data_set import get_toy_set, get_toy_set_genre_only
+from read_data_set import *
 
 # NN
 import torch
+import torch.utils.data as data
 import torch.nn as nn
-import torch.nn.functional as F
+# import torch.nn.functional as F
 import torch.optim as optim
+from sklearn.model_selection import cross_val_predict
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from skorch import NeuralNet
+# from skorch.dataset import Dataset
 from torch.autograd import Variable
-from pytorch_data_set import SpotifyDataset
+# from pytorch_data_set import SpotifyDataset
 
+# PLOTTING
+import matplotlib.pyplot as plt
+import optunity
+import optunity.metrics
 
-# GET FULL DATA
-full_data = get_toy_set()
+LR = 0.001
+BATCH_SIZE = 2019
+EPOCH=1000
+#
+# # GET FULL DATA
+# full_data = get_toy_set()
+# full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+# (numSamples, numFeatures) = full_data_arr.shape
+# labels_arr = np.asarray(full_data['labels'])
+# numClasses = len(set(labels_arr))
+
+# GET USER DATA
+full_data = get_user_set('miz')
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
 (numSamples, numFeatures) = full_data_arr.shape
 labels_arr = np.asarray(full_data['labels'])
 numClasses = len(set(labels_arr))
+
+scaler = StandardScaler()
+scaled_full_data = scaler.fit_transform(full_data_arr)
 
 # # GET GENRE DATA
 # genre_only_data = get_toy_set_genre_only()
@@ -28,28 +50,91 @@ numClasses = len(set(labels_arr))
 
 # CONVERT TO PYTORCH DATASET
 labels_matrix = np.reshape(labels_arr, (len(labels_arr),1))
-X = torch.from_numpy(full_data_arr).float()
-y = torch.from_numpy(labels_matrix).long()
 
-train_data = torch.utils.data.TensorDataset(X, y)
-trainloader = torch.utils.data.DataLoader(train_data, batch_size=4, shuffle=True)
+enc = OneHotEncoder(handle_unknown='ignore')
+y_onehot = enc.fit_transform(labels_matrix).toarray() # for softmax
+
+X = torch.from_numpy(scaled_full_data).float()
+y = torch.from_numpy(y_onehot).float()
+
+# @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
+print(X.shape)
+print(y.shape)
+train_data = data.TensorDataset(X, y)
+loader = data.DataLoader(train_data, batch_size=BATCH_SIZE, shuffle=True)
 
 X = Variable(X).type(torch.FloatTensor)
-y = Variable(y).type(torch.LongTensor)
+y = Variable(y).type(torch.FloatTensor)
 
 # DEFINE NETWORK
 class Net(nn.Module):
-    def __init__(self, numFeatures, numClasses):
+    def __init__(self, n_features, n_hidden, n_output):
         super(Net, self).__init__()
         # define architecture
-        self.hidden_layer = nn.Linear(numFeatures, numClasses)
-        self.output = nn.Linear(numClasses, 1)
+        self.hidden = nn.Linear(n_features, n_hidden)
+        self.output = nn.Linear(n_hidden, n_output)
 
     def forward(self, x):
-        x = F.sigmoid(self.hidden_layer(x))
-        x = F.sigmoid(self.output(x))
+        x = torch.relu(self.hidden(x))
+        x = torch.softmax(self.output(x), dim=0)
         return x
 
+if __name__ == '__main__':
+    # different nets
+    net = Net(numFeatures, 5, numClasses)
+    opt = torch.optim.Adam(net.parameters(), lr=LR, betas=(0.9, 0.99))
+    loss_func = torch.nn.MSELoss()
+    losses_his = []   # record loss
+
+    # training
+    for epoch in range(EPOCH):
+        running_loss = 0.0
+        for step, (b_x, b_y) in enumerate(loader): # for each training step
+            output = net(b_x)              # get output for every net
+            loss = loss_func(output, b_y)  # compute loss for every net
+            opt.zero_grad()                # clear gradients for next train
+            loss.backward()                # backpropagation, compute gradients
+            opt.step()                     # apply gradients
+            # running_loss += loss.item()
+            # if step % 20 == 19:
+            #     print("[%d, %d]: %.3f" % (epoch + 1, step + 1, running_loss/20))
+            #     running_loss = 0.0
+        losses_his.append(loss.data.numpy())     # loss recoder
+        if epoch % 50 == 0:
+            print("[%d]: %.3f" % (epoch, loss.item()))
+        # #Accuracy
+        # output = (output > 0.5).float()
+        # correct = (output == labels).float().sum()
+        # print("Epoch {}/{}, Loss: {:.3f}, Accuracy: {:.3f}".format(epoch+1, EPOCH, loss.data[0], correct/output.shape[0]))
+
+    plt.plot(losses_his)
+    plt.legend(loc='best')
+    plt.xlabel('Steps')
+    plt.ylabel('Loss')
+    plt.savefig('nntrial-miz.png')
+    plt.show()
+
+
+
+
+
+
+# # INSTANTIATE PROBLEM
+# model = NeuralNet(
+#         module = Net,
+#         module__numFeatures = numFeatures,
+#         module__numClasses = numClasses,
+#         criterion = nn.MSELoss,
+#         optimizer = optim.SGD,
+#         optimizer__lr = 0.001,
+#         optimizer__momentum = 0.9,
+#         max_epochs = 20)
+#
+# # train_data.CVSplit(5)
+# model.fit(train_data)
+# model.save_params(f_params='train_params.pkl')
+# y_pred = cross_val_predict(model, X, y, cv=5)
+#
 
 
 
@@ -57,39 +142,14 @@ class Net(nn.Module):
 
 
 
-# INSTANTIATE PROBLEM
-model = NeuralNet(
-        module = Net,
-        module__numFeatures = numFeatures,
-        module__numClasses = numClasses,
-        criterion = nn.NLLLoss,
-        optimizer = optim.SGD,
-        optimizer__lr = 0.001,
-        optimizer__momentum = 0.9,
-        max_epochs = 20)
-
-# trainloader.CVSplit(5)
-
-model.fit(X, y)
-net.save_params(f_params='train_params.pkl')
-y_pred = model.predict(X_valid)
 
 
 
-
-
-
-
-
-
-
-
-
-# model = Net(numFeatures, numClasses)
+# model = Net(numFeatures, 10, numClasses)
 #
 # # DEFINE LOSS AND MINIMIZATION METHOD
-# # criterion = nn.MSELoss()
-# criterion = nn.NLLLoss()
+# criterion = nn.MSELoss()
+# # criterion = nn.NLLLoss()
 # optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 #
 # for epoch in range(100):  # loop over the dataset multiple times
@@ -111,9 +171,9 @@ y_pred = model.predict(X_valid)
 #
 #         # print statistics
 #         running_loss += loss.item()
-#         if i % 50 == 49:    # print every 50 mini-batches
+#         if i % 500 == 499:    # print every 50 mini-batches
 #             print('[%d, %5d] Batch loss: %.3f' %
-#                   (epoch + 1, i + 1, running_loss / 50))
+#                   (epoch + 1, i + 1, running_loss / 500))
 #             running_loss = 0.0
 #     # print statistics
 #     # print('#### [%d] EPOCH LOSS: %.3f' % (epoch + 1, loss.item()))
@@ -129,7 +189,7 @@ y_pred = model.predict(X_valid)
 
 
 
-
+#
 # # Define train and test data
 # batch_size = 32
 # train_loader = None  # Change this to training data iterator
@@ -159,6 +219,7 @@ y_pred = model.predict(X_valid)
 #         return F.log_softmax(x, dim=1)
 #
 # model = Net()
+#
 # if use_gpu:
 #     model = model.cuda()
 #

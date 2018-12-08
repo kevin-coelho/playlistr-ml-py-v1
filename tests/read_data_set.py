@@ -24,11 +24,11 @@ def get_tracks():
     except Exception as e:
         print(e)
 
-def get_user_tracks():
+def get_user_tracks(name):
     try:
         # open the query file in "read mode" ('r'), read it (read()), then
         # execute that query
-        cur.execute(open('./queries/get_user_tracks.sql', 'r').read())
+        cur.execute(open('./queries/get_' + name + '_tracks.sql', 'r').read())
         # get all the rows from the result of executing the query
         rows = cur.fetchall()
         # for every row, split off the first and last columns (trackId and playlistId), then convert to numpy array
@@ -143,7 +143,7 @@ def get_toy_set_genre_only():
         'labels': labels,
     }
 
-def get_user_set():
+def get_user_set(name):
     """
         Get toy set as numpy arrays (m samples X k features / sample), return dict:
         {
@@ -155,7 +155,7 @@ def get_user_set():
     TRACK_ID_IDX = 0
 
     # GET AND FORMAT DATA
-    tracks = np.array(get_user_tracks())
+    tracks = np.array(get_user_tracks(name))
     # get labels
     playlists = tracks[..., -1].flatten()
     playlist_dict = {playlist: idx for idx, playlist in enumerate(set(playlists))}

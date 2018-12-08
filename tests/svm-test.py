@@ -19,7 +19,7 @@ import optunity.metrics
 import numpy as np
 
 # MODULE DEPS
-from read_data_set import get_toy_set, get_toy_set_genre_only, get_user_set
+from read_data_set import *
 
 # # GET SPOTIFY DATA
 # full_data = get_toy_set()
@@ -30,7 +30,7 @@ from read_data_set import get_toy_set, get_toy_set_genre_only, get_user_set
 # genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
 
 # GET USER DATA
-full_data = get_user_set()
+full_data = get_user_set('miz')
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
 labels = np.asarray(full_data['labels'])
 
@@ -90,7 +90,8 @@ def run_perceptron(scale_features=False, genre_only=False):
     return result
 
 results = []
-for scale in [True, False]:
+# for scale in [True, False]:
+for scale in [True]:
     # for genre_only in [True, False]:
     for genre_only in [False]:
         results.append(run_rbf_kernel(scale, genre_only))
