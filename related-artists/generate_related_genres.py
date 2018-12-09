@@ -5,37 +5,59 @@ import networkx as nx
 from glove import Glove
 from glove import Corpus
 import multiprocessing
-import numpy as np
+import argparse
 import chalk
 
 # MODULE DEPS
-from util import related_genres
+from util import get_nx_graph, get_node2vec_walks
 
 # OUTPUT DIR
 CWD = os.path.dirname(os.path.realpath(__file__))
 RESULT_DIR = os.path.join(CWD, 'output')
-if not os.path.exists(RESULT_DIR):
-    os.mkdir(RESULT_DIR)
 CORPUS_FILE = os.path.join(RESULT_DIR, 'related_genre_glove_corpus.model')
 GLOVE_MODEL_FILE = os.path.join(RESULT_DIR, 'related_genre_glove.model')
 
 # CONSTANTS
-WINDOW_SIZE = 1
+WINDOW_SIZE = 5
 VECTOR_DIMENSION = 128
-GLOVE_EPOCHS = 100
+GLOVE_EPOCHS = 15
 PARALLEL_WORKER_COUNT = multiprocessing.cpu_count()
 
-# MAIN
-res = related_genres()
-print('Got related genres: ', chalk.green(len(res)))
-artistIds, genres = zip(*res)
-corpus = Corpus()
-corpus.fit(genres, window=WINDOW_SIZE)
-corpus.save(CORPUS_FILE)
+parser = argparse.ArgumentParser(description='Related genres GLOVE model')
+parser.add_argument('--corpus', '-c', default=CORPUS_FILE, help='Specify corpus file to read')
+parser.add_argument('--glove', '-g', default=GLOVE_MODEL_FILE, help='Specify glove model file to read')
+parser.add_argument('--train', '-t', action='store_true', default=False, help='Retrain glove model from corpus')
+parser.add_argument('--query', '-q', action='store', default='', help='Get close genres')
+args = parser.parse_args()
 
-glove = Glove(no_components=VECTOR_DIMENSION, learning_rate=0.05)
-glove.fit(corpus.matrix, epochs=GLOVE_EPOCHS, no_threads=PARALLEL_WORKER_COUNT, verbose=False)
-glove.add_dictionary(corpus.dictionary)
-glove.save(GLOVE_MODEL_FILE)
-for genre in genres[0: 50]:
-    print(genre[0], ':', glove.most_similar(genre[0]))
+CORPUS_FILE = args.corpus
+GLOVE_MODEL_FILE = args.glove
+
+if not os.path.exists(RESULT_DIR):
+    os.mkdir(RESULT_DIR)
+
+# MAIN
+if os.path.exists(CORPUS_FILE):
+    print('[{}] Reading corpus from file...'.format(chalk.yellow(CORPUS_FILE)))
+    corpus = Corpus.load(CORPUS_FILE)
+else:
+    nx_G = get_nx_graph()
+    walks = get_node2vec_walks(nx_G)
+    corpus = Corpus()
+    corpus.fit(walks, window=WINDOW_SIZE)
+    print('[{}] Writing corpus file...'.format(chalk.green(CORPUS_FILE)))
+    corpus.save(CORPUS_FILE)
+
+if os.path.exists(GLOVE_MODEL_FILE) and not args.train:
+    print('[{}] Reading glove model from file...'.format(chalk.yellow(GLOVE_MODEL_FILE)))
+    glove = Glove.load(GLOVE_MODEL_FILE)
+else:
+    glove = Glove(no_components=VECTOR_DIMENSION, learning_rate=0.05)
+    glove.fit(corpus.matrix, epochs=GLOVE_EPOCHS, no_threads=PARALLEL_WORKER_COUNT, verbose=True)
+    glove.add_dictionary(corpus.dictionary)
+    print('[{}] Writing glove file...'.format(chalk.green(GLOVE_MODEL_FILE)))
+    glove.save(GLOVE_MODEL_FILE)
+if args.query:
+    dictionary = glove.dictionary
+    print(glove.word_vectors[glove.dictionary[args.query]])
+    print(glove.most_similar(args.query, number=10))

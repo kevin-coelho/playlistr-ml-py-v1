@@ -58,4 +58,6 @@ else:
     print('[{}] Writing glove file...'.format(chalk.green(GLOVE_MODEL_FILE)))
     glove.save(GLOVE_MODEL_FILE)
 if args.query:
-    print(glove.most_similar(args.query, number=10))
+    dictionary = glove.dictionary
+    print(glove.word_vectors[glove.dictionary[args.query]])
+    print(glove.most_similar(args.query, number=40))
