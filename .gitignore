@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Mac OS
 .DS_Store
 
@@ -8,6 +9,14 @@
 /node2vec/emb
 /node2vec/graph
 /node2vec/node2vec_spark/
+
+# Related Artist Ignores
+# Results
+*.png
+/related-artists/output
+
+# Train Params (NN Outputs)
+*.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
