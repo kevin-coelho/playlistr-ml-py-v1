@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 # MODULE DEPS
 from read_data_set import *
 
-THREED=True
-NAME='amelcob'
+THREED=False
+NAME='myles'
 # # GET DATA
 # full_data = get_toy_set()
 # full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
@@ -49,16 +49,11 @@ ax = fig.add_subplot(1, 1, 1, projection='3d') if THREED else fig.add_subplot(1,
 for data, color in zip(data, colors):
     if THREED:
         x, y, z = data
-        ax.scatter(x, y, z, alpha=0.8, c=color, edgecolors='none', s=30)
+        ax.scatter(x, y, z, alpha=0.8, c=color, s=100)
     else:
         x, y = data
-        ax.scatter(x, y, alpha=0.8, c=color, edgecolors='none', s=30)
+        ax.scatter(x, y, alpha=0.8, c=color, s=100)
 
-plt.title('Amelcob Data')
 plt.legend(loc='best')
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-if THREED:
-    ax.set_zlabel('Z')
 plt.savefig('results/{}data.png'.format(NAME))
 plt.show()

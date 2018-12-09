@@ -26,10 +26,10 @@ from math import ceil, floor
 # NN PARAMETERS
 NAME='spotify'
 LR=0.001
-EPOCH=1000
-PRINT_FREQ=100
+EPOCH=100
+PRINT_FREQ=10
 TWO_LAYERS=True
-NLL=True
+NLL=False
 
 # GET DATA
 full_data = get_user_set(NAME)
@@ -59,9 +59,9 @@ scaled_test = scaler.fit_transform(x_test)
 
 # CONVERT TO PYTORCH DATASET
 X_train = torch.from_numpy(scaled_train).float()
-Y_train = torch.from_numpy(y_train).long()
+Y_train = torch.from_numpy(y_train).long() if NLL else torch.from_numpy(y_train).float()
 X_test = torch.from_numpy(scaled_test).float()
-Y_test = torch.from_numpy(y_test).long()
+Y_test = torch.from_numpy(y_test).long() if NLL else torch.from_numpy(y_test).float()
 
 # @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
 train_data = data.TensorDataset(X_train, Y_train)
@@ -120,7 +120,9 @@ if __name__ == '__main__':
 
         vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
         output = net(data)
+        print(vec_target)
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+        print(pred)
         correct = pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
         if epoch % PRINT_FREQ == 0:
             train_loss.append(loss.data.numpy())
