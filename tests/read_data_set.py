@@ -102,11 +102,12 @@ def get_toy_set():
     for sample in data_arr:
         for idx, elem in enumerate(sample):
             if elem is None:
-                sample[idx] = 0
+                sample[idx] = 0 # not sure if this is good...
 
     return {
         'data_arr': data_arr,
         'labels': labels,
+        'labels_dict': playlist_dict
     }
 
 
@@ -183,4 +184,5 @@ def get_user_set(name):
     return {
         'data_arr': data_arr,
         'labels': labels,
+        'labels_dict': playlist_dict
     }

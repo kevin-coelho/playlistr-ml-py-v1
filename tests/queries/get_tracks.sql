@@ -11,7 +11,7 @@ SELECT
 	af.tempo,
 	af.time_signature,
 	array_agg(ag."genre") as genres,
-	pl.id as playlist_id
+	pl.name as playlist_name
 FROM "Playlists" pl
 INNER JOIN playlist_track pt ON pl.id = pt."playlistId"
 INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
@@ -30,4 +30,4 @@ GROUP BY
 	af.valence,
 	af.tempo,
 	af.time_signature,
-	pl.id;
+	pl.name;

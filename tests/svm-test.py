@@ -2,18 +2,20 @@
 import operator
 
 # NON-STANDARD IMPORTS
+import pandas as pd
+import optunity
+import optunity.metrics
+from math import ceil, floor
 
 # SKLEARN
-import pandas as pd
-from sklearn.model_selection import cross_val_score
-# from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import Perceptron
 from sklearn.pipeline import make_pipeline
-import optunity
-import optunity.metrics
+from sklearn.utils import shuffle
 
 # NUMPY
 import numpy as np
@@ -30,8 +32,9 @@ from read_data_set import *
 # genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
 
 # GET USER DATA
-full_data = get_user_set('miz')
+full_data = get_user_set('spotify')
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+playlist_dict = full_data['labels_dict']
 labels = np.asarray(full_data['labels'])
 
 def run_rbf_kernel(scale_features=False, genre_only=False):
@@ -44,8 +47,8 @@ def run_rbf_kernel(scale_features=False, genre_only=False):
         'Scaled' if scale_features else 'Unscaled',
         'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
         # (scores.std() * 1.96) corresponds to 95% confidence interval
+    output = cross_val_predict(classifier, data, labels, cv=5)
     return result
-
 
 # PARAMETERS TO TUNE
 # C, gamma, coef0
@@ -100,7 +103,6 @@ for scale in [True]:
         results.append(run_perceptron(scale, genre_only))
 print('\n###### ONE-TIME RESULTS ######\n\t' + '\n\t'.join(results))
 
-
 scaler = StandardScaler()
 scaled_full_data = scaler.fit_transform(full_data_arr)
 
@@ -109,6 +111,23 @@ c_vals = {}
 # score function: twice iterated 10-fold cross-validated accuracy
 @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
 def svm_auc(x_train, y_train, x_test, y_test, logC):
+    model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
+    accuracy = model.score(x_test, y_test)
+    # print('tuning...', logC, accuracy)
+    decision_values = model.decision_function(x_test)
+    if str(logC) not in c_vals:
+        c_vals[str(logC)] = accuracy
+    else:
+        c_vals[str(logC)] += accuracy / 10
+    return accuracy
+    # return optunity.metrics.roc_auc(y_test, decision_values)
+
+
+# score function: twice iterated 10-fold cross-validated accuracy
+@optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
+def svm_auc(x_train, y_train, x_test, y_test, logC):
+    svm = SVC(kernel='rbf', gamma='scale')
+
     model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
     accuracy = model.score(x_test, y_test)
     # print('tuning...', logC, accuracy)
@@ -130,5 +149,8 @@ print(hps)
 # train model on the full training set with tuned hyperparameters
 optimal_model = SVC(kernel='sigmoid', C=10 ** hps['logC'], gamma='scale')
 scores = cross_val_score(optimal_model, scaled_full_data, labels, cv=5)
+output = cross_val_predict(optimal_model, scaled_full_data, labels, cv=5)
+print(confusion_matrix(labels, output))
+print(playlist_dict)
 result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
 print(result)
