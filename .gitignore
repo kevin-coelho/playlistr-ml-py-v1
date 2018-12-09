@@ -1,5 +1,6 @@
 # Results
 *.png
+/related-artists/output
 
 # Train Params (NN Outputs)
 *.pkl
