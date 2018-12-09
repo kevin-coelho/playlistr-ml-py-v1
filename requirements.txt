@@ -1,3 +1,4 @@
+adjustText==0.7.3
 cycler==0.10.0
 decorator==4.3.0
 glove-python==0.1.0
