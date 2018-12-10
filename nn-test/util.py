@@ -3,6 +3,7 @@ import sys
 import os
 import numpy as np
 import pdb
+from sklearn.preprocessing import normalize
 
 # MODULE DEPS
 CWD = os.path.dirname(os.path.realpath(__file__))
@@ -32,7 +33,7 @@ def compute_vectors(input_arr, vector_dict, vectors):
             if elem and elem in vector_dict:
                 vec += vectors[vector_dict[elem]]
         transformed[idx] = vec
-    return transformed
+    return normalize(X=transformed, norm='l2')
 
 
 def generate_one_hot(input_arr, input_dict):
