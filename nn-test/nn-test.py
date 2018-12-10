@@ -1,241 +1,194 @@
-# -*- coding: utf-8 -*-
-"""
-Neural Networks
-===============
+# NUMPY
+import numpy as np
 
-Neural networks can be constructed using the ``torch.nn`` package.
+# MODULE DEPS
+from read_data_set import *
 
-Now that you had a glimpse of ``autograd``, ``nn`` depends on
-``autograd`` to define models and differentiate them.
-An ``nn.Module`` contains layers, and a method ``forward(input)``\ that
-returns the ``output``.
-
-For example, look at this network that classifies digit images:
-
-.. figure:: /_static/img/mnist.png
-   :alt: convnet
-
-   convnet
-
-It is a simple feed-forward network. It takes the input, feeds it
-through several layers one after the other, and then finally gives the
-output.
-
-A typical training procedure for a neural network is as follows:
-
-- Define the neural network that has some learnable parameters (or
-  weights)
-- Iterate over a dataset of inputs
-- Process input through the network
-- Compute the loss (how far is the output from being correct)
-- Propagate gradients back into the network’s parameters
-- Update the weights of the network, typically using a simple update rule:
-  ``weight = weight - learning_rate * gradient``
-
-Define the network
-------------------
-
-Let’s define this network:
-"""
+# NN
 import torch
+import torch.utils.data as data
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as optim
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.utils import shuffle
+from torch.autograd import Variable
+
+# PLOTTING
+import matplotlib.pyplot as plt
+
+# METRICS
+import optunity
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import cross_val_predict
+
+from math import ceil, floor
+
+# NN PARAMETERS
+NAME = 'spotify'
+LR = 0.001
+EPOCH = 100
+PRINT_FREQ = 10
+TWO_LAYERS = True
+NLL = False
+
+# GET DATA
+full_data = get_user_set(NAME)
+full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+m, n = full_data_arr.shape
+
+labels_arr = np.asarray(full_data['labels'])
+labels_dict = full_data['labels_dict']
+C = len(set(labels_arr))
+
+labels_matrix = np.reshape(labels_arr, (len(labels_arr), 1))
+enc = OneHotEncoder(handle_unknown='ignore')
+y_onehot = enc.fit_transform(labels_matrix).toarray()  # for softmax
+
+shuffled_data, shuffled_labels = shuffle(
+    full_data_arr, labels_arr) if NLL else shuffle(full_data_arr, y_onehot)
+x_train, y_train = (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m)]
+                    ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
+x_test, y_test = (shuffled_data[floor(0.8 * m):, :], shuffled_labels[floor(0.8 * m):]
+                  ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
+
+scaler = StandardScaler()
+scaled_train = scaler.fit_transform(x_train)
+scaled_test = scaler.fit_transform(x_test)
+
+# # GET GENRE DATA
+# genre_only_data = get_toy_set_genre_only()
+# genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
+# (numGenreSamples, numGenreFeatures) = genre_data_arr.shape
+
+# CONVERT TO PYTORCH DATASET
+X_train = torch.from_numpy(scaled_train).float()
+Y_train = torch.from_numpy(y_train).long(
+) if NLL else torch.from_numpy(y_train).float()
+X_test = torch.from_numpy(scaled_test).float()
+Y_test = torch.from_numpy(y_test).long(
+) if NLL else torch.from_numpy(y_test).float()
+
+# @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
+train_data = data.TensorDataset(X_train, Y_train)
+train_loader = data.DataLoader(
+    train_data, batch_size=X_train.shape[0], shuffle=True)
+test_data = data.TensorDataset(X_test, Y_test)
+test_loader = data.DataLoader(
+    test_data, batch_size=X_test.shape[0], shuffle=True)
+
+# DEFINE NETWORK
 
 
 class Net(nn.Module):
 
-    def __init__(self):
+    def __init__(self, n_features, n_hidden, n_output):
         super(Net, self).__init__()
-        # an affine operation: y = Wx + b
-        self.fc1 = nn.Linear(32, 1)
+        # define architecture
+        self.hidden = nn.Linear(n_features, n_hidden)
+        self.output = nn.Linear(n_hidden, n_output)
 
     def forward(self, x):
-        x = self.fc1(x)
+        x = torch.sigmoid(self.hidden(x))
+        m = nn.LogSoftmax(dim=0)
+        x = m(self.output(x))
         return x
 
 
-net = Net()
-print(net)
+class Net2(nn.Module):
 
-########################################################################
-# You just have to define the ``forward`` function, and the ``backward``
-# function (where gradients are computed) is automatically defined for you
-# using ``autograd``.
-# You can use any of the Tensor operations in the ``forward`` function.
-#
-# The learnable parameters of a model are returned by ``net.parameters()``
+    def __init__(self, n_features, n_hidden1, n_hidden2, n_output):
+        super(Net2, self).__init__()
+        # define architecture
+        self.hidden1 = nn.Linear(n_features, n_hidden1)
+        self.hidden2 = nn.Linear(n_hidden1, n_hidden2)
+        self.output = nn.Linear(n_hidden2, n_output)
 
-params = list(net.parameters())
-print(len(params))
-print(params[0].size())  # conv1's .weight
-
-########################################################################
-# Let try a random 32x32 input
-# Note: Expected input size to this net(LeNet) is 32x32. To use this net on
-# MNIST dataset, please resize the images from the dataset to 32x32.
-
-input = torch.randn(1, 1, 32, 32)
-out = net(input)
-print('out', out)
-
-########################################################################
-# Zero the gradient buffers of all parameters and backprops with random
-# gradients:
-net.zero_grad()
-out.backward(torch.randn(1, 10))
-
-########################################################################
-# .. note::
-#
-#     ``torch.nn`` only supports mini-batches. The entire ``torch.nn``
-#     package only supports inputs that are a mini-batch of samples, and not
-#     a single sample.
-#
-#     For example, ``nn.Conv2d`` will take in a 4D Tensor of
-#     ``nSamples x nChannels x Height x Width``.
-#
-#     If you have a single sample, just use ``input.unsqueeze(0)`` to add
-#     a fake batch dimension.
-#
-# Before proceeding further, let's recap all the classes you’ve seen so far.
-#
-# **Recap:**
-#   -  ``torch.Tensor`` - A *multi-dimensional array* with support for autograd
-#      operations like ``backward()``. Also *holds the gradient* w.r.t. the
-#      tensor.
-#   -  ``nn.Module`` - Neural network module. *Convenient way of
-#      encapsulating parameters*, with helpers for moving them to GPU,
-#      exporting, loading, etc.
-#   -  ``nn.Parameter`` - A kind of Tensor, that is *automatically
-#      registered as a parameter when assigned as an attribute to a*
-#      ``Module``.
-#   -  ``autograd.Function`` - Implements *forward and backward definitions
-#      of an autograd operation*. Every ``Tensor`` operation, creates at
-#      least a single ``Function`` node, that connects to functions that
-#      created a ``Tensor`` and *encodes its history*.
-#
-# **At this point, we covered:**
-#   -  Defining a neural network
-#   -  Processing inputs and calling backward
-#
-# **Still Left:**
-#   -  Computing the loss
-#   -  Updating the weights of the network
-#
-# Loss Function
-# -------------
-# A loss function takes the (output, target) pair of inputs, and computes a
-# value that estimates how far away the output is from the target.
-#
-# There are several different
-# `loss functions <http://pytorch.org/docs/nn.html#loss-functions>`_ under the
-# nn package .
-# A simple loss is: ``nn.MSELoss`` which computes the mean-squared error
-# between the input and the target.
-#
-# For example:
-
-output = net(input)
-target = torch.randn(10)  # a dummy target, for example
-target = target.view(1, -1)  # make it the same shape as output
-criterion = nn.MSELoss()
-
-loss = criterion(output, target)
-print(loss)
-
-########################################################################
-# Now, if you follow ``loss`` in the backward direction, using its
-# ``.grad_fn`` attribute, you will see a graph of computations that looks
-# like this:
-#
-# ::
-#
-#     input -> conv2d -> relu -> maxpool2d -> conv2d -> relu -> maxpool2d
-#           -> view -> linear -> relu -> linear -> relu -> linear
-#           -> MSELoss
-#           -> loss
-#
-# So, when we call ``loss.backward()``, the whole graph is differentiated
-# w.r.t. the loss, and all Tensors in the graph that has ``requires_grad=True``
-# will have their ``.grad`` Tensor accumulated with the gradient.
-#
-# For illustration, let us follow a few steps backward:
-
-print(loss.grad_fn)  # MSELoss
-print(loss.grad_fn.next_functions[0][0])  # Linear
-print(loss.grad_fn.next_functions[0][0].next_functions[0][0])  # ReLU
-
-########################################################################
-# Backprop
-# --------
-# To backpropagate the error all we have to do is to ``loss.backward()``.
-# You need to clear the existing gradients though, else gradients will be
-# accumulated to existing gradients.
-#
-#
-# Now we shall call ``loss.backward()``, and have a look at conv1's bias
-# gradients before and after the backward.
+    def forward(self, x):
+        x = self.hidden1(x)
+        x = torch.sigmoid(self.hidden2(x))
+        m = nn.LogSoftmax(dim=0)
+        x = m(self.output(x))
+        return x
 
 
-net.zero_grad()     # zeroes the gradient buffers of all parameters
+if __name__ == '__main__':
+    # different nets
+    net = Net2(n, 2 * C, C, C) if TWO_LAYERS else Net(n, C, C)
+    opt = torch.optim.Adam(net.parameters(), lr=LR, weight_decay=1E-5)
+    loss_func = nn.NLLLoss() if NLL else nn.MSELoss()
+    train_loss, test_loss = [], []  # record loss
+    train_accuracy, test_accuracy = [], []
 
-print('conv1.bias.grad before backward')
-print(net.conv1.bias.grad)
+    def train(epoch):
+        net.train()
 
-loss.backward()
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = Variable(data), Variable(target)
+            output = net(data)
+            loss = loss_func(output, target)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
 
-print('conv1.bias.grad after backward')
-print(net.conv1.bias.grad)
+        vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
+        output = net(data)
+        print(vec_target)
+        # get the index of the max log-probability
+        pred = output.data.max(1, keepdim=True)[1]
+        print(pred)
+        correct = pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
+        if epoch % PRINT_FREQ == 0:
+            train_loss.append(loss.data.numpy())
+            train_accuracy.append(
+                100. * correct / (len(train_loader) * X_train.shape[0]))
+            print('TRAIN {}\t{:.6f}'.format(epoch, loss.data[0]))
 
-########################################################################
-# Now, we have seen how to use loss functions.
-#
-# **Read Later:**
-#
-#   The neural network package contains various modules and loss functions
-#   that form the building blocks of deep neural networks. A full list with
-#   documentation is `here <http://pytorch.org/docs/nn>`_.
-#
-# **The only thing left to learn is:**
-#
-#   - Updating the weights of the network
-#
-# Update the weights
-# ------------------
-# The simplest update rule used in practice is the Stochastic Gradient
-# Descent (SGD):
-#
-#      ``weight = weight - learning_rate * gradient``
-#
-# We can implement this using simple python code:
-#
-# .. code:: python
-#
-#     learning_rate = 0.01
-#     for f in net.parameters():
-#         f.data.sub_(f.grad.data * learning_rate)
-#
-# However, as you use neural networks, you want to use various different
-# update rules such as SGD, Nesterov-SGD, Adam, RMSProp, etc.
-# To enable this, we built a small package: ``torch.optim`` that
-# implements all these methods. Using it is very simple:
+    def test(epoch):
+        net.eval()
+        running_loss = 0.0
+        correct = 0
 
-import torch.optim as optim
+        for data, target in test_loader:
+            data, target = Variable(data), Variable(target)
+            vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
+            output = net(data)
+            # sum up batch loss
+            running_loss += loss_func(output, target).data[0]
+            # get the index of the max log-probability
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(vec_target.data.view_as(pred)
+                               ).long().cpu().sum()
 
-# create your optimizer
-optimizer = optim.SGD(net.parameters(), lr=0.01)
+        running_loss /= len(test_loader) * data.shape[0]
+        if epoch % PRINT_FREQ == 0:
+            print('  TEST: Avg. loss: {:.4f}, Accuracy: {:.0f}%\n'.format(
+                running_loss, 100. * correct / (len(test_loader) * X_test.shape[0])))
+            test_loss.append(running_loss)
+            test_accuracy.append(
+                100. * correct / (len(test_loader) * X_test.shape[0]))
 
-# in your training loop:
-optimizer.zero_grad()   # zero the gradient buffers
-output = net(input)
-loss = criterion(output, target)
-loss.backward()
-optimizer.step()    # Does the update
+        return vec_target, pred
 
+    for epoch in range(EPOCH):
+        train(epoch)
+        target, output = test(epoch)
+    print(confusion_matrix(target, output))
+    print(full_data['labels_dict'])
 
-###############################################################
-# .. Note::
-#
-#       Observe how gradient buffers had to be manually set to zero using
-#       ``optimizer.zero_grad()``. This is because gradients are accumulated
-#       as explained in `Backprop`_ section.
+    print('Final Training Accuracy: {}%'.format(float(train_accuracy[-1])))
+    print('Final Test Accuracy: {}%'.format(float(test_accuracy[-1])))
+
+    fig, (ax1, ax2) = plt.subplots(2, 1)
+
+    ax1.plot(range(0, EPOCH, PRINT_FREQ), train_loss, 'b', label='train')
+    ax1.legend(loc='best')
+    ax1.set_ylabel('Loss')
+
+    ax2.plot(range(0, EPOCH, PRINT_FREQ), train_accuracy, 'b', label='train')
+    ax2.plot(range(0, EPOCH, PRINT_FREQ), test_accuracy, 'r', label='test')
+    ax2.legend(loc='best')
+    ax2.set_xlabel('Epoch')
+    ax2.set_ylabel('Accuracy')
+
+    fig.savefig('results/nn_trial-{}-NLL-1000-reg-2layers.png'.format(NAME))
+    fig.show()

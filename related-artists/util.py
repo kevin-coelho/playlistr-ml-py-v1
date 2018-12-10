@@ -5,8 +5,8 @@ import networkx as nx
 
 # MODULE DEPS
 CWD = os.path.dirname(os.path.realpath(__file__))
-DB_FOLDER = os.path.join(CWD, '../db')
-NODE2VEC_FOLDER = os.path.join(CWD, '../node2vec/src')
+DB_FOLDER = os.path.realpath(os.path.join(CWD, '../db'))
+NODE2VEC_FOLDER = os.path.realpath(os.path.join(CWD, '../node2vec/src'))
 sys.path.append(DB_FOLDER)
 sys.path.append(NODE2VEC_FOLDER)
 from read_data_set import get_related_artists, get_related_genres

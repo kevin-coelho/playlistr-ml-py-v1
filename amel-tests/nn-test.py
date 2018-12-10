@@ -24,12 +24,12 @@ from sklearn.model_selection import cross_val_predict
 from math import ceil, floor
 
 # NN PARAMETERS
-NAME='spotify'
-LR=0.001
-EPOCH=100
-PRINT_FREQ=10
-TWO_LAYERS=True
-NLL=False
+NAME = 'spotify'
+LR = 0.001
+EPOCH = 100
+PRINT_FREQ = 10
+TWO_LAYERS = True
+NLL = False
 
 # GET DATA
 full_data = get_user_set(NAME)
@@ -40,13 +40,16 @@ labels_arr = np.asarray(full_data['labels'])
 labels_dict = full_data['labels_dict']
 C = len(set(labels_arr))
 
-labels_matrix = np.reshape(labels_arr, (len(labels_arr),1))
+labels_matrix = np.reshape(labels_arr, (len(labels_arr), 1))
 enc = OneHotEncoder(handle_unknown='ignore')
-y_onehot = enc.fit_transform(labels_matrix).toarray() # for softmax
+y_onehot = enc.fit_transform(labels_matrix).toarray()  # for softmax
 
-shuffled_data, shuffled_labels = shuffle(full_data_arr, labels_arr) if NLL else shuffle(full_data_arr, y_onehot)
-x_train, y_train = (shuffled_data[:floor(0.8*m), :], shuffled_labels[:floor(0.8 * m)]) if NLL else (shuffled_data[:floor(0.8*m), :], shuffled_labels[:floor(0.8 * m), :])
-x_test, y_test = (shuffled_data[floor(0.8*m):, :], shuffled_labels[floor(0.8 * m):]) if NLL else (shuffled_data[:floor(0.8*m), :], shuffled_labels[:floor(0.8 * m), :])
+shuffled_data, shuffled_labels = shuffle(
+    full_data_arr, labels_arr) if NLL else shuffle(full_data_arr, y_onehot)
+x_train, y_train = (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m)]
+                    ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
+x_test, y_test = (shuffled_data[floor(0.8 * m):, :], shuffled_labels[floor(0.8 * m):]
+                  ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
 
 scaler = StandardScaler()
 scaled_train = scaler.fit_transform(x_train)
@@ -59,18 +62,25 @@ scaled_test = scaler.fit_transform(x_test)
 
 # CONVERT TO PYTORCH DATASET
 X_train = torch.from_numpy(scaled_train).float()
-Y_train = torch.from_numpy(y_train).long() if NLL else torch.from_numpy(y_train).float()
+Y_train = torch.from_numpy(y_train).long(
+) if NLL else torch.from_numpy(y_train).float()
 X_test = torch.from_numpy(scaled_test).float()
-Y_test = torch.from_numpy(y_test).long() if NLL else torch.from_numpy(y_test).float()
+Y_test = torch.from_numpy(y_test).long(
+) if NLL else torch.from_numpy(y_test).float()
 
 # @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
 train_data = data.TensorDataset(X_train, Y_train)
-train_loader = data.DataLoader(train_data, batch_size=X_train.shape[0], shuffle=True)
+train_loader = data.DataLoader(
+    train_data, batch_size=X_train.shape[0], shuffle=True)
 test_data = data.TensorDataset(X_test, Y_test)
-test_loader = data.DataLoader(test_data, batch_size=X_test.shape[0], shuffle=True)
+test_loader = data.DataLoader(
+    test_data, batch_size=X_test.shape[0], shuffle=True)
 
 # DEFINE NETWORK
+
+
 class Net(nn.Module):
+
     def __init__(self, n_features, n_hidden, n_output):
         super(Net, self).__init__()
         # define architecture
@@ -83,7 +93,9 @@ class Net(nn.Module):
         x = m(self.output(x))
         return x
 
+
 class Net2(nn.Module):
+
     def __init__(self, n_features, n_hidden1, n_hidden2, n_output):
         super(Net2, self).__init__()
         # define architecture
@@ -101,7 +113,7 @@ class Net2(nn.Module):
 
 if __name__ == '__main__':
     # different nets
-    net = Net2(n, 2*C, C, C) if TWO_LAYERS else Net(n, C, C)
+    net = Net2(n, 2 * C, C, C) if TWO_LAYERS else Net(n, C, C)
     opt = torch.optim.Adam(net.parameters(), lr=LR, weight_decay=1E-5)
     loss_func = nn.NLLLoss() if NLL else nn.MSELoss()
     train_loss, test_loss = [], []  # record loss
@@ -121,12 +133,14 @@ if __name__ == '__main__':
         vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
         output = net(data)
         print(vec_target)
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+        # get the index of the max log-probability
+        pred = output.data.max(1, keepdim=True)[1]
         print(pred)
         correct = pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
         if epoch % PRINT_FREQ == 0:
             train_loss.append(loss.data.numpy())
-            train_accuracy.append(100. * correct / (len(train_loader) * X_train.shape[0]))
+            train_accuracy.append(
+                100. * correct / (len(train_loader) * X_train.shape[0]))
             print('TRAIN {}\t{:.6f}'.format(epoch, loss.data[0]))
 
     def test(epoch):
@@ -138,18 +152,22 @@ if __name__ == '__main__':
             data, target = Variable(data), Variable(target)
             vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
             output = net(data)
-            running_loss += loss_func(output, target).data[0] # sum up batch loss
-            pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-            correct += pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
+            # sum up batch loss
+            running_loss += loss_func(output, target).data[0]
+            # get the index of the max log-probability
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(vec_target.data.view_as(pred)
+                               ).long().cpu().sum()
 
         running_loss /= len(test_loader) * data.shape[0]
         if epoch % PRINT_FREQ == 0:
-            print('  TEST: Avg. loss: {:.4f}, Accuracy: {:.0f}%\n'.format(running_loss, 100. * correct / (len(test_loader) * X_test.shape[0])))
+            print('  TEST: Avg. loss: {:.4f}, Accuracy: {:.0f}%\n'.format(
+                running_loss, 100. * correct / (len(test_loader) * X_test.shape[0])))
             test_loss.append(running_loss)
-            test_accuracy.append(100. * correct / (len(test_loader) * X_test.shape[0]))
+            test_accuracy.append(
+                100. * correct / (len(test_loader) * X_test.shape[0]))
 
         return vec_target, pred
-
 
     for epoch in range(EPOCH):
         train(epoch)

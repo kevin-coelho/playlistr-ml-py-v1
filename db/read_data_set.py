@@ -1,9 +1,13 @@
 import psycopg2
+import psycopg2.extras
 import numpy as np
 import os
 
 CWD = os.path.dirname(os.path.realpath(__file__))
 QUERY_FOLDER = os.path.join(CWD, 'queries')
+
+
+#     array_agg(ag."genre") as genres,
 
 try:
     conn = psycopg2.connect(
@@ -12,36 +16,137 @@ try:
 
 except Exception as e:
     print(e)
+    raise e
 
 
-def get_tracks():
+def get_playlist_dict(playlists=None, datasets=None):
+    SELECT = '''SELECT pl.id, pl.name FROM dataset_playlist dp INNER JOIN "Playlists" pl on dp."playlistId" = pl."id"'''
+
+    first_where = False
+    WHERE = ''
+    if datasets:
+        DATASET_WHERE = '''dp."datasetName" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', datasets)))
+        WHERE += 'WHERE ' + DATASET_WHERE
+        first_where = True
+    if playlists:
+        PLAYLIST_WHERE = '''pl."id" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', playlists)))
+        WHERE += '\n' + ('AND ' if first_where else 'WHERE ') + PLAYLIST_WHERE
+        first_where = True
+
+    QUERY = '{}\n{};'.format(SELECT, WHERE)
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute(QUERY)
+    rows = cur.fetchall()
+    playlist_dict = {row[0]: row[1] for row in rows}
+    return playlist_dict
+
+
+def get_track_dict(tracks):
+    SELECT = '''SELECT tr.id, tr."name" FROM "Tracks" tr'''
+    WHERE = '''WHERE tr."id" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', tracks)))
+    QUERY = '{}\n{};'.format(SELECT, WHERE)
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute(QUERY)
+    rows = cur.fetchall()
+    track_dict = {row[0]: row[1] for row in rows}
+    return track_dict
+
+
+def compose_select_tracks(audio_features, genres, artists, users=None, playlists=None, datasets=None):
+    if not playlists and not datasets:
+        raise Exception('One of playlists array or datasets array must be provided')
+    if users and len(users) < 1:
+        raise Exception('Empty users array provided')
+    if playlists and len(playlists) < 1:
+        raise Exception('Empty playlists array provided')
+    if datasets and len(datasets) < 1:
+        raise Exception('Empty datasets array provided')
+
+    SELECT = 'SELECT \n    tr.id AS track_id'
+    if audio_features:
+        AUDIO_FEATURES = '''
+,\n    af.danceability,
+    af.energy,
+    af.mode,
+    af.speechiness,
+    af.acousticness,
+    af.instrumentalness,
+    af.liveness,
+    af.valence,
+    af.tempo,
+    af.time_signature
+        '''.strip()
+        SELECT += AUDIO_FEATURES
+    if genres:
+        SELECT += ',\n    array_agg(ag."genre") as genres'
+    if artists:
+        SELECT += ',\n    array_agg(ar."name") as artists'
+    if users and len(users) > 0:
+        SELECT += ',\n    us."display_name" as owner_name'
+    SELECT += ',\n    pl.id as playlist_id'
+
+    FROM = '''
+FROM dataset_playlist dp
+INNER JOIN "Playlists" pl on dp."playlistId" = pl."id"
+INNER JOIN playlist_track pt ON pl.id = pt."playlistId"
+INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
+{audio_features}
+{artist_track}
+{genres}
+{artists}
+{owners}
+    '''.format(
+        artist_track=('INNER JOIN artist_track at ON tr.id = at."trackId"' if genres or artists else ''),
+        audio_features=('INNER JOIN "AudioFeatures" af ON af."trackId" = tr.id' if audio_features else ''),
+        genres=('INNER JOIN artist_genre ag ON at."artistId" = ag."artistId"' if genres else ''),
+        artists=('INNER JOIN "Artists" ar ON at."artistId" = ar.id' if artists else ''),
+        owners=('INNER JOIN "Users" us on pl."ownerId" = us.id' if users and len(users) > 0 else '')
+    ).strip()
+
+    first_where = False
+    WHERE = ''
+    if datasets:
+        DATASET_WHERE = '''dp."datasetName" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', datasets)))
+        WHERE += 'WHERE ' + DATASET_WHERE
+        first_where = True
+    if playlists:
+        PLAYLIST_WHERE = '''pl."name" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', playlists)))
+        WHERE += '\n' + ('AND ' if first_where else 'WHERE ') + PLAYLIST_WHERE
+        first_where = True
+    if users:
+        USER_WHERE = '''us."display_name" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', users)))
+        WHERE += '\n' + 'AND ' + USER_WHERE
+
+    GROUP_BY = 'GROUP BY\n    tr.id,\n    pl.id'
+    if audio_features:
+        GROUP_BY += AUDIO_FEATURES
+    if users:
+        GROUP_BY += ',\n    us."display_name"'
+
+    ORDER_BY = 'ORDER BY tr.id DESC'
+    return '{}\n{}\n{}\n{}\n{};'.format(SELECT, FROM, WHERE, GROUP_BY, ORDER_BY)
+
+
+def get_tracks(audio_features, genres, artists, users=None, playlists=None, datasets=None):
     try:
-        # open the query file in "read mode" ('r'), read it (read()), then
-        # execute that query
-        QUERY_FILE = os.path.join(QUERY_FOLDER, 'get_tracks.sql')
-        cur.execute(open(QUERY_FILE, 'r').read())
-        # get all the rows from the result of executing the query
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(compose_select_tracks(audio_features, genres, artists, users, playlists, datasets))
         rows = cur.fetchall()
-        # for every row, split off the first and last columns (trackId and playlistId), then convert to numpy array
-        # print(rows)
         return rows
-
     except Exception as e:
         print(e)
+        return None
 
 
 def get_genres():
     try:
-        # open the query file in "read mode" ('r'), read it (read()), then
-        # execute that query
         cur.execute('SELECT name FROM "Genres";')
-        # get all the rows from the result of executing the query
         rows = cur.fetchall()
-        # print(rows)
         return rows
 
     except Exception as e:
         print(e)
+        return None
 
 
 def get_related_genres():
@@ -51,6 +156,7 @@ def get_related_genres():
         return rows
     except Exception as e:
         print(e)
+        return None
 
 
 def get_related_artists():

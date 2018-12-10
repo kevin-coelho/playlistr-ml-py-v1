@@ -9,7 +9,7 @@ import argparse
 import chalk
 
 # MODULE DEPS
-from util import get_nx_graph, get_node2vec_walks
+import util
 
 # OUTPUT DIR
 CWD = os.path.dirname(os.path.realpath(__file__))
@@ -41,8 +41,8 @@ if os.path.exists(CORPUS_FILE):
     print('[{}] Reading corpus from file...'.format(chalk.yellow(CORPUS_FILE)))
     corpus = Corpus.load(CORPUS_FILE)
 else:
-    nx_G = get_nx_graph()
-    walks = get_node2vec_walks(nx_G)
+    nx_G = util.get_nx_graph()
+    walks = util.get_node2vec_walks(nx_G)
     corpus = Corpus()
     corpus.fit(walks, window=WINDOW_SIZE)
     print('[{}] Writing corpus file...'.format(chalk.green(CORPUS_FILE)))
@@ -61,3 +61,7 @@ if args.query:
     dictionary = glove.dictionary
     print(glove.word_vectors[glove.dictionary[args.query]])
     print(glove.most_similar(args.query, number=40))
+
+
+def get_glove_model():
+    return glove
