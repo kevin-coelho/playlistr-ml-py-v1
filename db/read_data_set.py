@@ -7,16 +7,34 @@ CWD = os.path.dirname(os.path.realpath(__file__))
 QUERY_FOLDER = os.path.join(CWD, 'queries')
 
 
-#     array_agg(ag."genre") as genres,
+DEFAULT_CUR = None
 
 try:
     conn = psycopg2.connect(
         "dbname='playlistr_ml_v1' user='playlistr_ml_v1' host='localhost' password='plt_210'")
-    cur = conn.cursor()
+    DEFAULT_CUR = conn.cursor()
 
 except Exception as e:
     print(e)
     raise e
+
+
+def get_avg_audio_features():
+    DEFAULT_CUR.execute('''
+SELECT
+AVG(danceability),
+AVG(energy),
+AVG(mode),
+AVG(speechiness),
+AVG(acousticness),
+AVG(instrumentalness),
+AVG(LIVENESS),
+AVG(valence),
+AVG(tempo),
+AVG(time_signature)
+FROM "AudioFeatures" af
+'''.strip())
+    return DEFAULT_CUR.fetchall()
 
 
 def get_playlist_dict(playlists=None, datasets=None):
@@ -80,9 +98,8 @@ def compose_select_tracks(audio_features, genres, artists, users=None, playlists
     if genres:
         SELECT += ',\n    array_agg(ag."genre") as genres'
     if artists:
-        SELECT += ',\n    array_agg(ar."name") as artists'
-    if users and len(users) > 0:
-        SELECT += ',\n    us."display_name" as owner_name'
+        SELECT += ',\n    array_agg(DISTINCT ar."name") as artists'
+    SELECT += ',\n    us."display_name" as owner_name'
     SELECT += ',\n    pl.id as playlist_id'
 
     FROM = '''
@@ -97,10 +114,10 @@ INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
 {owners}
     '''.format(
         artist_track=('INNER JOIN artist_track at ON tr.id = at."trackId"' if genres or artists else ''),
-        audio_features=('INNER JOIN "AudioFeatures" af ON af."trackId" = tr.id' if audio_features else ''),
-        genres=('INNER JOIN artist_genre ag ON at."artistId" = ag."artistId"' if genres else ''),
+        audio_features=('LEFT JOIN "AudioFeatures" af ON af."trackId" = tr.id' if audio_features else ''),
+        genres=('LEFT JOIN artist_genre ag ON at."artistId" = ag."artistId"' if genres else ''),
         artists=('INNER JOIN "Artists" ar ON at."artistId" = ar.id' if artists else ''),
-        owners=('INNER JOIN "Users" us on pl."ownerId" = us.id' if users and len(users) > 0 else '')
+        owners=('INNER JOIN "Users" us on pl."ownerId" = us.id')
     ).strip()
 
     first_where = False
@@ -120,8 +137,7 @@ INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
     GROUP_BY = 'GROUP BY\n    tr.id,\n    pl.id'
     if audio_features:
         GROUP_BY += AUDIO_FEATURES
-    if users:
-        GROUP_BY += ',\n    us."display_name"'
+    GROUP_BY += ',\n    us."display_name"'
 
     ORDER_BY = 'ORDER BY tr.id DESC'
     return '{}\n{}\n{}\n{}\n{};'.format(SELECT, FROM, WHERE, GROUP_BY, ORDER_BY)
@@ -129,9 +145,8 @@ INNER JOIN "Tracks" tr ON pt."trackId" = tr.id
 
 def get_tracks(audio_features, genres, artists, users=None, playlists=None, datasets=None):
     try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute(compose_select_tracks(audio_features, genres, artists, users, playlists, datasets))
-        rows = cur.fetchall()
+        DEFAULT_CUR.execute(compose_select_tracks(audio_features, genres, artists, users, playlists, datasets))
+        rows = DEFAULT_CUR.fetchall()
         return rows
     except Exception as e:
         print(e)
@@ -140,8 +155,8 @@ def get_tracks(audio_features, genres, artists, users=None, playlists=None, data
 
 def get_genres():
     try:
-        cur.execute('SELECT name FROM "Genres";')
-        rows = cur.fetchall()
+        DEFAULT_CUR.execute('SELECT name FROM "Genres";')
+        rows = DEFAULT_CUR.fetchall()
         return rows
 
     except Exception as e:
@@ -151,8 +166,8 @@ def get_genres():
 
 def get_related_genres():
     try:
-        cur.execute('SELECT "artistId", array_agg(genre) FROM artist_genre GROUP BY "artistId";')
-        rows = cur.fetchall()
+        DEFAULT_CUR.execute('SELECT "artistId", array_agg(genre) FROM artist_genre GROUP BY "artistId";')
+        rows = DEFAULT_CUR.fetchall()
         return rows
     except Exception as e:
         print(e)
@@ -162,8 +177,8 @@ def get_related_genres():
 def get_related_artists():
     try:
         QUERY_FILE = os.path.join(QUERY_FOLDER, 'related_artists_names.sql')
-        cur.execute(open(QUERY_FILE, 'r').read())
-        rows = cur.fetchall()
+        DEFAULT_CUR.execute(open(QUERY_FILE, 'r').read())
+        rows = DEFAULT_CUR.fetchall()
         return rows
     except Exception as e:
         print(e)

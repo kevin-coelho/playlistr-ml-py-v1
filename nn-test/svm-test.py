@@ -3,7 +3,7 @@ import operator
 
 # NON-STANDARD IMPORTS
 
-# SKLEARN 
+# SKLEARN
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -100,7 +100,7 @@ def run_logistic(scale_features=False, genre_only=False):
 results = []
 for scale in [True, False]:
     for genre_only in [True, False]:
-            results.append(run_logistic(scale, genre_only))            
+            results.append(run_logistic(scale, genre_only))
 print('\n###### INITIAL RESULTS ######\n\t' + '\n\t'.join(results))
 
 """
