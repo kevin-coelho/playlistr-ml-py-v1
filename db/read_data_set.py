@@ -19,19 +19,19 @@ except Exception as e:
     raise e
 
 
-def get_avg_audio_features():
+def get_audio_features():
     DEFAULT_CUR.execute('''
 SELECT
-AVG(danceability),
-AVG(energy),
-AVG(mode),
-AVG(speechiness),
-AVG(acousticness),
-AVG(instrumentalness),
-AVG(LIVENESS),
-AVG(valence),
-AVG(tempo),
-AVG(time_signature)
+danceability,
+energy,
+mode,
+speechiness,
+acousticness,
+instrumentalness,
+LIVENESS,
+valence,
+tempo,
+time_signature
 FROM "AudioFeatures" af
 '''.strip())
     return DEFAULT_CUR.fetchall()

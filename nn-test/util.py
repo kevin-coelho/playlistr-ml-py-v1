@@ -2,6 +2,7 @@
 import sys
 import os
 import numpy as np
+import pdb
 
 # MODULE DEPS
 CWD = os.path.dirname(os.path.realpath(__file__))
@@ -11,7 +12,7 @@ sys.path.insert(0, DB_FOLDER)
 sys.path.insert(0, GLOVE_MODEL_FOLDER)
 import generate_related_artists_glove
 import generate_related_genres_glove
-from read_data_set import get_tracks, get_avg_audio_features
+from read_data_set import get_tracks, get_audio_features
 
 
 def get_related_glove_models():
@@ -20,9 +21,8 @@ def get_related_glove_models():
 
 def compute_vectors(input_arr, vector_dict, vectors):
     avg_vec = np.mean(vectors, axis=0)
-    transformed = np.ndarray((1, vectors.shape[1]))
-    for arr in input_arr:
-        vec = np.zeros(vectors.shape[1])
+    transformed = np.ndarray((len(input_arr), vectors.shape[1]))
+    for idx, arr in enumerate(input_arr):
         arr = [elem for elem in arr if elem is not None]
         if len(arr) < 1:
             vec = avg_vec
@@ -31,7 +31,7 @@ def compute_vectors(input_arr, vector_dict, vectors):
         for elem in arr:
             if elem and elem in vector_dict:
                 vec += vectors[vector_dict[elem]]
-        transformed = np.append(transformed, [vec], axis=0)
+        transformed[idx] = vec
     return transformed
 
 
@@ -45,14 +45,13 @@ def generate_one_hot(input_arr, input_dict):
 
 
 def extract_audio_features(res, avg_features):
-    audio_res = []
-    for row in res:
-        audio_res.append([])
-        for idx in range(1, 10):
+    audio_res = np.ndarray((len(res), len(avg_features)))
+    for sample_idx, row in enumerate(res):
+        for idx in range(1, 11):
             if row[idx] is not None:
-                audio_res[idx] = row[idx]
+                audio_res[sample_idx][idx - 1] = row[idx]
             else:
-                audio_res[idx] = avg_features[idx]
+                audio_res[sample_idx][idx - 1] = avg_features[idx - 1]
     return audio_res
 
 
@@ -60,10 +59,9 @@ def extract_genres(res, idx):
     genre_res = []
     for row_idx, row in enumerate(res):
         genre_res.append([])
-        print(idx, row)
         for genre in row[idx]:
             if genre is not None:
-                genre_res[row_idx] += genre
+                genre_res[row_idx] += [genre]
     return genre_res
 
 
@@ -73,7 +71,7 @@ def extract_artists(res, idx):
         artist_res.append([])
         for artist in row[idx]:
             if artist is not None:
-                artist_res[row_idx] += artist
+                artist_res[row_idx] += [artist]
     return artist_res
 
 
@@ -84,12 +82,11 @@ def extract_user_names(res):
     return user_names
 
 
-def get_track_data(audio_features, genres, artists, users=None, playlists=None, datasets=None, transform_glove=False):
+def get_track_data(audio_features=True, genres=True, artists=False, users=None, playlists=None, datasets=None, transform_glove=False):
     query_res = get_tracks(audio_features, genres, artists, users, playlists, datasets)
-    print(len(query_res[0]))
 
     if audio_features:
-        avg_audio_features = get_avg_audio_features()[0]
+        avg_audio_features = np.mean(np.array(get_audio_features()), axis=0)
         audio_res = extract_audio_features(query_res, avg_audio_features)
 
     if genres:
@@ -107,13 +104,6 @@ def get_track_data(audio_features, genres, artists, users=None, playlists=None, 
     user_names = [row[-2] for row in query_res]
     track_ids = [row[0] for row in query_res]
     playlist_ids = [row[-1] for row in query_res]
-
-    print(audio_res)
-    print(genre_res)
-    print(artist_res)
-    print(user_names)
-    print(track_ids)
-    print(playlist_ids)
 
     # load glove models
     artist_glove, genres_glove = get_related_glove_models()
@@ -134,15 +124,10 @@ def get_track_data(audio_features, genres, artists, users=None, playlists=None, 
         data.append([])
         if audio_features:
             features = audio_res[idx]
-            for ind, feature in enumerate(features):
-                if feature is not None:
-                    data[idx].extend([feature])
-                else:
-                    data[idx].extend([avg_audio_features[ind]])
+            data[idx].extend(features)
         if genres:
             data[idx].extend(genres_transformed[idx])
         if artists and transform_glove:
             data[idx].extend(artists_transformed[idx])
-    data = np.array(data, dtype='float64')
-    print(track_ids.shape, data.shape, playlist_ids.shape, user_names.shape)
+    data = np.array(data)
     return (track_ids, data, playlist_ids, user_names)
