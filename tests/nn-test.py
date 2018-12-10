@@ -26,10 +26,10 @@ from math import ceil, floor
 # NN PARAMETERS
 NAME='spotify'
 LR=0.001
-EPOCH=100
+EPOCH=500
 PRINT_FREQ=10
-TWO_LAYERS=True
-NLL=False
+TWO_LAYERS=False
+NLL=True
 
 # GET DATA
 full_data = get_user_set(NAME)
@@ -102,7 +102,7 @@ class Net2(nn.Module):
 if __name__ == '__main__':
     # different nets
     net = Net2(n, 2*C, C, C) if TWO_LAYERS else Net(n, C, C)
-    opt = torch.optim.Adam(net.parameters(), lr=LR, weight_decay=1E-5)
+    opt = torch.optim.Adam(net.parameters(), lr=LR, weight_decay=1E-4)
     loss_func = nn.NLLLoss() if NLL else nn.MSELoss()
     train_loss, test_loss = [], []  # record loss
     train_accuracy, test_accuracy = [], []
@@ -120,9 +120,7 @@ if __name__ == '__main__':
 
         vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
         output = net(data)
-        print(vec_target)
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        print(pred)
         correct = pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
         if epoch % PRINT_FREQ == 0:
             train_loss.append(loss.data.numpy())
@@ -172,5 +170,5 @@ if __name__ == '__main__':
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('Accuracy')
 
-    fig.savefig('results/nn_trial-{}-NLL-1000-reg-2layers.png'.format(NAME))
+    fig.savefig('results/{}4reg2layers500epochC.png'.format(NAME))
     fig.show()

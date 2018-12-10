@@ -9,7 +9,7 @@ from math import ceil, floor
 
 # SKLEARN
 from sklearn.model_selection import cross_val_score, cross_val_predict
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.preprocessing import PolynomialFeatures
@@ -93,8 +93,8 @@ def run_perceptron(scale_features=False, genre_only=False):
     return result
 
 results = []
-# for scale in [True, False]:
-for scale in [True]:
+for scale in [True, False]:
+# for scale in [True]:
     # for genre_only in [True, False]:
     for genre_only in [False]:
         results.append(run_rbf_kernel(scale, genre_only))
@@ -111,24 +111,7 @@ c_vals = {}
 # score function: twice iterated 10-fold cross-validated accuracy
 @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
 def svm_auc(x_train, y_train, x_test, y_test, logC):
-    model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
-    accuracy = model.score(x_test, y_test)
-    # print('tuning...', logC, accuracy)
-    decision_values = model.decision_function(x_test)
-    if str(logC) not in c_vals:
-        c_vals[str(logC)] = accuracy
-    else:
-        c_vals[str(logC)] += accuracy / 10
-    return accuracy
-    # return optunity.metrics.roc_auc(y_test, decision_values)
-
-
-# score function: twice iterated 10-fold cross-validated accuracy
-@optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
-def svm_auc(x_train, y_train, x_test, y_test, logC):
-    svm = SVC(kernel='rbf', gamma='scale')
-
-    model = SVC(kernel='sigmoid', C=10 ** logC, gamma='scale').fit(x_train, y_train)
+    model = SVC(kernel='rbf', C=10 ** logC, gamma='scale').fit(x_train, y_train)
     accuracy = model.score(x_test, y_test)
     # print('tuning...', logC, accuracy)
     decision_values = model.decision_function(x_test)
@@ -143,14 +126,14 @@ def svm_auc(x_train, y_train, x_test, y_test, logC):
 # perform tuning
 hps, _, _ = optunity.maximize(svm_auc, num_evals=25, logC=[-5, 2])
 print(hps)
-
+print(c_vals)
 # print('best c: {}'.format(max(c_vals.items(), key=operator.itemgetter(1))[0]))
 
 # train model on the full training set with tuned hyperparameters
-optimal_model = SVC(kernel='sigmoid', C=10 ** hps['logC'], gamma='scale')
+optimal_model = SVC(kernel='rbf', C=10 ** hps['logC'], gamma='scale')
 scores = cross_val_score(optimal_model, scaled_full_data, labels, cv=5)
 output = cross_val_predict(optimal_model, scaled_full_data, labels, cv=5)
-print(confusion_matrix(labels, output))
+print(classification_report(labels, output))
 print(playlist_dict)
 result = 'Optimal Model Scores (C={}): {}'.format(10 ** hps['logC'], 'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
 print(result)
