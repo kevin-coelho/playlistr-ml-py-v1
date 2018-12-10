@@ -12,7 +12,7 @@ sys.path.insert(0, DB_FOLDER)
 sys.path.insert(0, GLOVE_MODEL_FOLDER)
 import generate_related_artists_glove
 import generate_related_genres_glove
-from read_data_set import get_tracks, get_audio_features
+from read_data_set import get_tracks, get_audio_features, get_track_dict, get_playlist_dict
 
 
 def get_related_glove_models():
@@ -84,6 +84,8 @@ def extract_user_names(res):
 
 def get_track_data(audio_features=True, genres=True, artists=False, users=None, playlists=None, datasets=None, transform_glove=False):
     query_res = get_tracks(audio_features, genres, artists, users, playlists, datasets)
+    if len(query_res) < 1:
+        raise Exception('No query results found, please check parameters.')
 
     if audio_features:
         avg_audio_features = np.mean(np.array(get_audio_features()), axis=0)
@@ -130,4 +132,4 @@ def get_track_data(audio_features=True, genres=True, artists=False, users=None, 
         if artists and transform_glove:
             data[idx].extend(artists_transformed[idx])
     data = np.array(data)
-    return (track_ids, data, playlist_ids, user_names)
+    return (track_ids, data, playlist_ids, user_names, get_track_dict(track_ids), get_playlist_dict(playlists=playlist_ids))

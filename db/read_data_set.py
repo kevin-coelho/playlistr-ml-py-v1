@@ -52,9 +52,8 @@ def get_playlist_dict(playlists=None, datasets=None):
         first_where = True
 
     QUERY = '{}\n{};'.format(SELECT, WHERE)
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cur.execute(QUERY)
-    rows = cur.fetchall()
+    DEFAULT_CUR.execute(QUERY)
+    rows = DEFAULT_CUR.fetchall()
     playlist_dict = {row[0]: row[1] for row in rows}
     return playlist_dict
 
@@ -63,9 +62,8 @@ def get_track_dict(tracks):
     SELECT = '''SELECT tr.id, tr."name" FROM "Tracks" tr'''
     WHERE = '''WHERE tr."id" IN ({})'''.format(','.join(map(lambda s: '\'' + str(s) + '\'', tracks)))
     QUERY = '{}\n{};'.format(SELECT, WHERE)
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    cur.execute(QUERY)
-    rows = cur.fetchall()
+    DEFAULT_CUR.execute(QUERY)
+    rows = DEFAULT_CUR.fetchall()
     track_dict = {row[0]: row[1] for row in rows}
     return track_dict
 

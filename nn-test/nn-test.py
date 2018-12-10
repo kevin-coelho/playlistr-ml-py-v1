@@ -2,7 +2,7 @@
 import numpy as np
 
 # MODULE DEPS
-from read_data_set import *
+# from read_data_set import *
 
 # NN
 import torch
@@ -23,6 +23,8 @@ from sklearn.model_selection import cross_val_predict
 
 from math import ceil, floor
 
+from util import get_track_data
+
 # NN PARAMETERS
 NAME = 'spotify'
 LR = 0.001
@@ -32,12 +34,14 @@ TWO_LAYERS = True
 NLL = False
 
 # GET DATA
-full_data = get_user_set(NAME)
-full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+# full_data = get_user_set(NAME)
+# full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
+track_ids, full_data_arr, labels_arr, user_names, track_dict, labels_dict = get_track_data(audio_features=True, genres=True, artists=True, users=['Donald Duberstein'], datasets=['spotify_user_data_set'], transform_glove=True)
 m, n = full_data_arr.shape
 
-labels_arr = np.asarray(full_data['labels'])
-labels_dict = full_data['labels_dict']
+# labels_arr = np.asarray(full_data['labels'])
+# labels_dict = full_data['labels_dict']
+
 C = len(set(labels_arr))
 
 labels_matrix = np.reshape(labels_arr, (len(labels_arr), 1))
