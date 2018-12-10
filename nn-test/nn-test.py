@@ -26,21 +26,22 @@ from math import ceil, floor
 from util import get_track_data
 
 # NN PARAMETERS
-NAME = 'spotify'
+NAME = 'Spotify'
+DATASET = 'spotify_toy_data_set'
 LR = 0.001
-EPOCH = 100
+EPOCH = 180
 PRINT_FREQ = 10
-TWO_LAYERS = True
-NLL = False
+TWO_LAYERS = False
+NLL = True
 
 # GET DATA
 # full_data = get_user_set(NAME)
 # full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
-track_ids, full_data_arr, labels_arr, user_names, track_dict, labels_dict = get_track_data(audio_features=True, genres=True, artists=True, users=['Donald Duberstein'], datasets=['spotify_user_data_set'], transform_glove=True)
+track_ids, full_data_arr, labels_arr, user_names, track_dict, labels_dict = get_track_data(audio_features=True, genres=True, artists=True, users=[NAME], datasets=[DATASET], transform_glove=True)
 m, n = full_data_arr.shape
 
-# labels_arr = np.asarray(full_data['labels'])
-# labels_dict = full_data['labels_dict']
+playlist_dict = {labels_dict[playlist]: idx for idx, playlist in enumerate(set(labels_arr))}
+labels = np.array([playlist_dict[labels_dict[playlist]] for playlist in labels_arr])
 
 C = len(set(labels_arr))
 
@@ -48,12 +49,15 @@ labels_matrix = np.reshape(labels_arr, (len(labels_arr), 1))
 enc = OneHotEncoder(handle_unknown='ignore')
 y_onehot = enc.fit_transform(labels_matrix).toarray()  # for softmax
 
+# ind_labels = [labels_dict[label] for label in labels_arr]
+# print(ind_labels)
 shuffled_data, shuffled_labels = shuffle(
-    full_data_arr, labels_arr) if NLL else shuffle(full_data_arr, y_onehot)
+    full_data_arr, labels) if NLL else shuffle(full_data_arr, y_onehot)
+
 x_train, y_train = (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m)]
                     ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
 x_test, y_test = (shuffled_data[floor(0.8 * m):, :], shuffled_labels[floor(0.8 * m):]
-                  ) if NLL else (shuffled_data[:floor(0.8 * m), :], shuffled_labels[:floor(0.8 * m), :])
+                  ) if NLL else (shuffled_data[floor(0.8 * m):, :], shuffled_labels[floor(0.8 * m):, :])
 
 scaler = StandardScaler()
 scaled_train = scaler.fit_transform(x_train)
@@ -66,10 +70,10 @@ scaled_test = scaler.fit_transform(x_test)
 
 # CONVERT TO PYTORCH DATASET
 X_train = torch.from_numpy(scaled_train).float()
-Y_train = torch.from_numpy(y_train).long(
+Y_train = torch.from_numpy(np.array(y_train)).long(
 ) if NLL else torch.from_numpy(y_train).float()
 X_test = torch.from_numpy(scaled_test).float()
-Y_test = torch.from_numpy(y_test).long(
+Y_test = torch.from_numpy(np.array(y_test)).long(
 ) if NLL else torch.from_numpy(y_test).float()
 
 # @optunity.cross_validated(x=scaled_full_data, y=labels, num_folds=5, num_iter=2)
@@ -134,12 +138,10 @@ if __name__ == '__main__':
             loss.backward()
             opt.step()
 
-        vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
+        vec_target = target if NLL else target.argmax(dim=-1, keepdim=True)
         output = net(data)
-        print(vec_target)
         # get the index of the max log-probability
         pred = output.data.max(1, keepdim=True)[1]
-        print(pred)
         correct = pred.eq(vec_target.data.view_as(pred)).long().cpu().sum()
         if epoch % PRINT_FREQ == 0:
             train_loss.append(loss.data.numpy())
@@ -154,7 +156,7 @@ if __name__ == '__main__':
 
         for data, target in test_loader:
             data, target = Variable(data), Variable(target)
-            vec_target = target if NLL else target.argmax(dim=0, keepdim=True)
+            vec_target = target if NLL else target.argmax(dim=-1, keepdim=True)
             output = net(data)
             # sum up batch loss
             running_loss += loss_func(output, target).data[0]
@@ -177,7 +179,7 @@ if __name__ == '__main__':
         train(epoch)
         target, output = test(epoch)
     print(confusion_matrix(target, output))
-    print(full_data['labels_dict'])
+    print(playlist_dict)
 
     print('Final Training Accuracy: {}%'.format(float(train_accuracy[-1])))
     print('Final Test Accuracy: {}%'.format(float(test_accuracy[-1])))
@@ -194,5 +196,5 @@ if __name__ == '__main__':
     ax2.set_xlabel('Epoch')
     ax2.set_ylabel('Accuracy')
 
-    fig.savefig('results/nn_trial-{}-NLL-1000-reg-2layers.png'.format(NAME))
+    fig.savefig('results/{}-NLL-100-reg-2layers.png'.format(NAME))
     fig.show()
