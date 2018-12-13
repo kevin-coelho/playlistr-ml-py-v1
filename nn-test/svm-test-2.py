@@ -43,6 +43,8 @@ sets = [
     ['Snow Ball', 'THE MOTHER FUCKING BLENDER', 'Starlord_44', 'Starlord_24'],
 
 ]
+
+
 all_sets = np.array([item for sublist in sets for item in sublist])
 print(all_sets)
 for idx in range(5):
@@ -51,10 +53,30 @@ for idx in range(5):
     track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=playlists, transform_glove=True)
     run_rbf('Miz Set {}'.format(idx), data, labels, C=3)
 
-"""
-idx = 4
-track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=sets[idx], transform_glove=True)
-run_rbf('Miz Set {}'.format(idx), data, labels, C=2)"""
+
+sets = [
+    ['Work Playlist', '\'\'Nam', 'domesticated antelope', 'Silicon', 'Germanium', 'Iridium', 'Silver'],
+    ['Gold', 'Sodium', 'Cobalt', 'Vous parlez Francaise?', 'Tejas'],
+    ['Clueless Vol 3', 'Club can\'\'t Handel', 'Free, Wild, and Young', 'Titan Fall Noob'],
+    ['Wild, Free, and Young', 'Clueless in this Genre', 'DISCOTHEQUE 1996'],
+    ['Julianne\'\'s V-Day HW Mixtape', 'Loud AF', 'Fresno Fuccboi', 'Road trips and other itineraries'],
+    ['Alan for President', 'Princess Feel Good', 'Dance Girl X-treme', 'Baggheim + Sissyfus', 'The good shit', 'The Demagorgon'],
+    ['Snow Ball', 'THE MOTHER FUCKING BLENDER', 'Starlord_44', 'Starlord_24'],
+
+]
+
+all_sets = np.array([item for sublist in sets for item in sublist])
+for idx in range(5):
+    np.random.shuffle(all_sets)
+    playlists = list(all_sets[0:5])
+    track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=playlists, transform_glove=True)
+    run_rbf('Miz Set {}'.format(idx), data, labels, C=3)
+
+
+# idx = 4
+# track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=sets[idx], transform_glove=True)
+# run_rbf('Miz Set {}'.format(idx), data, labels, C=2)
+
 
 """
 for idx, miz_set in enumerate(sets):
