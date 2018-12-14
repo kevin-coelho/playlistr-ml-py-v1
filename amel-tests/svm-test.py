@@ -87,7 +87,7 @@ def run_perceptron(scale_features=False, genre_only=False):
     percept = Perceptron(fit_intercept=False, max_iter=1000, tol=1e-3, shuffle=True)
     classifier = make_pipeline(StandardScaler(), percept) if scale_features else percept
     scores = cross_val_score(classifier, data, labels, cv=5)
-    result = '[{}] [{}] Perceptron Scores: {}'.format(
+    result = '[{}] [{}] Perceptron Scores: {}'.(
         'Genre Only' if genre_only else 'Full',
         'Scaled' if scale_features else 'Unscaled',
         'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 1.96))
