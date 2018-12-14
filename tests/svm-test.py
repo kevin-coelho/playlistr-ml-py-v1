@@ -32,7 +32,7 @@ from read_data_set import *
 # genre_data_arr = np.asarray(genre_only_data['data_arr']).astype(np.float)
 
 # GET USER DATA
-full_data = get_user_set('spotify')
+full_data = get_user_set('jessica')
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
 playlist_dict = full_data['labels_dict']
 labels = np.asarray(full_data['labels'])
@@ -93,7 +93,7 @@ def run_perceptron(scale_features=False, genre_only=False):
     return result
 
 results = []
-for scale in [True, False]:
+for scale in [True]:
 # for scale in [True]:
     # for genre_only in [True, False]:
     for genre_only in [False]:

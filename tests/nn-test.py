@@ -24,7 +24,7 @@ from sklearn.model_selection import cross_val_predict
 from math import ceil, floor
 
 # NN PARAMETERS
-NAME='spotify'
+NAME='jacob'
 LR=0.001
 EPOCH=500
 PRINT_FREQ=10
@@ -35,6 +35,7 @@ NLL=True
 full_data = get_user_set(NAME)
 full_data_arr = np.asarray(full_data['data_arr']).astype(np.float)
 m, n = full_data_arr.shape
+print(m,n)
 
 labels_arr = np.asarray(full_data['labels'])
 labels_dict = full_data['labels_dict']
