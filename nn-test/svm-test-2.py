@@ -20,7 +20,7 @@ import optunity.metrics
 import numpy as np
 
 # MODULE DEPS
-from util import get_track_data
+from util import get_track_data, get_playlists_by_username
 
 
 def run_rbf(name, data, labels, C=1):
@@ -31,9 +31,10 @@ def run_rbf(name, data, labels, C=1):
     result = 'RBF Kernel Scores: {}'.format(
         'Accuracy: %0.2f (+/- %0.2f)' % (scores.mean(), scores.std() * 2))
     print(result)
+    return scores
 
 
-sets = [
+miz_sets = [
     ['Work Playlist', '\'\'Nam', 'domesticated antelope', 'Silicon', 'Germanium', 'Iridium', 'Silver'],
     ['Gold', 'Sodium', 'Cobalt', 'Vous parlez Francaise?', 'Tejas'],
     ['Clueless Vol 3', 'Club can\'\'t Handel', 'Free, Wild, and Young', 'Titan Fall Noob'],
@@ -41,15 +42,28 @@ sets = [
     ['Julianne\'\'s V-Day HW Mixtape', 'Loud AF', 'Fresno Fuccboi', 'Road trips and other itineraries'],
     ['Alan for President', 'Princess Feel Good', 'Dance Girl X-treme', 'Baggheim + Sissyfus', 'The good shit', 'The Demagorgon'],
     ['Snow Ball', 'THE MOTHER FUCKING BLENDER', 'Starlord_44', 'Starlord_24'],
-
 ]
-all_sets = np.array([item for sublist in sets for item in sublist])
-print(all_sets)
-for idx in range(5):
-    np.random.shuffle(all_sets)
-    playlists = list(all_sets[0:5])
+all_miz_sets = np.array([item for sublist in miz_sets for item in sublist])
+jessica_playlists = np.array(get_playlists_by_username('Jessica Chow'))
+
+
+def run_random_set(idx, name, playlist_set):
+    np.random.shuffle(playlist_set)
+    playlists = list(playlist_set[0:5])
     track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=playlists, transform_glove=True)
-    run_rbf('Miz Set {}'.format(idx), data, labels, C=3)
+    return run_rbf('{} Set {}'.format(name, idx), data, labels, C=3)
+
+"""
+results = []
+for i in range(100):
+    results.append(run_random_set(i, 'Jessica', jessica_playlists))
+mean = np.mean([elem.mean() for elem in results])
+var = np.sqrt(np.sum([elem.std() for elem in results]))
+print('Mean {} +- {}'.format(mean, var * 2))
+"""
+playlists = list(jessica_playlists)
+track_ids, data, labels, user_names, track_dict, playlist_dict = get_track_data(audio_features=True, genres=True, artists=True, playlists=playlists, transform_glove=True)
+run_rbf('Jessica', data, labels, C=3)
 
 """
 idx = 4

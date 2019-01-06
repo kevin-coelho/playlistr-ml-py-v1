@@ -37,6 +37,16 @@ FROM "AudioFeatures" af
     return DEFAULT_CUR.fetchall()
 
 
+def get_playlists_by_user(user):
+    DEFAULT_CUR.execute('''
+SELECT pl."name"
+FROM "Playlists" pl
+INNER JOIN "Users" us ON pl."ownerId" = us.id
+WHERE us.display_name = '{}';
+        '''.strip().format(user))
+    return DEFAULT_CUR.fetchall()
+
+
 def get_playlist_dict(playlists=None, datasets=None):
     SELECT = '''SELECT pl.id, pl.name FROM dataset_playlist dp INNER JOIN "Playlists" pl on dp."playlistId" = pl."id"'''
 

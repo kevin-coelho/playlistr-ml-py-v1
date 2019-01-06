@@ -13,7 +13,7 @@ sys.path.insert(0, DB_FOLDER)
 sys.path.insert(0, GLOVE_MODEL_FOLDER)
 import generate_related_artists_glove
 import generate_related_genres_glove
-from read_data_set import get_tracks, get_audio_features, get_track_dict, get_playlist_dict
+from read_data_set import get_tracks, get_audio_features, get_track_dict, get_playlist_dict, get_playlists_by_user
 
 
 def get_related_glove_models():
@@ -81,6 +81,10 @@ def extract_user_names(res):
     for idx, row in enumerate(res):
         user_names.append(row[-2])
     return user_names
+
+
+def get_playlists_by_username(*args, **kwargs):
+    return [item[0].replace('\'', '\'\'') for item in get_playlists_by_user(*args, **kwargs)]
 
 
 def get_track_data(audio_features=True, genres=True, artists=False, users=None, playlists=None, datasets=None, transform_glove=False):
